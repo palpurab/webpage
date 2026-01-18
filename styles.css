@@ -1,0 +1,401 @@
+/* =========================================================
+   Base (close to browser defaults)
+   ========================================================= */
+
+body {
+  margin: 8px;
+  padding: 0;
+  background-color: #e9f4fa;
+  color: #111;
+  font-size: 17px;
+  line-height: 1.2;
+}
+
+main {
+  padding: 0;
+}
+
+.section {
+  padding: 2rem 0;
+}
+
+/* =========================================================
+   Navbar
+   ========================================================= */
+
+.navbar {
+  padding: 0.6rem 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.nav-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.nav-links a {
+  margin-right: 1rem;
+  text-decoration: none;
+  font-weight: 700;
+  color: #1f4f67;
+}
+
+.nav-links a:hover {
+  text-decoration: underline;
+}
+
+.last-updated small {
+  color: #1f4f67;
+}
+
+/* =========================================================
+   Name box
+   ========================================================= */
+
+.name-box {
+  display: flex;
+  justify-content: center;
+  margin: 2rem 0 1.5rem;
+}
+
+.name-box h1 {
+  margin: 0;
+  padding: 0.6rem 1.6rem;
+  border: 1px solid #2f6f8f;
+  background-color: #e9f4fa;
+  font-size: 2.2rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+/* =========================================================
+   Bio section
+   ========================================================= */
+
+.bio-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 2rem;
+  align-items: start;
+}
+
+.bio-text p {
+  margin-bottom: 0.9rem;
+}
+
+.bio-photo img {
+  max-width: 260px;
+  height: auto;
+  display: block;
+  border: 0px solid #2f6f8f;
+}
+
+/* Stack on small screens */
+@media (max-width: 800px) {
+  .bio-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bio-photo img {
+    max-width: 220px;
+  }
+}
+
+/* =========================================================
+   Transliteration note
+   ========================================================= */
+
+.transliteration-note {
+  margin-top: 1rem;
+  color: #333;
+}
+
+/* =========================================================
+   Quick links
+   ========================================================= */
+
+.quick-links {
+  padding-left: 1.2rem;
+}
+
+.quick-links li {
+  margin: 0.25rem 0;
+}
+
+/* =========================================================
+   Section & subsection titles (boxed)
+   ========================================================= */
+
+.section-title,
+.subsection-title {
+  display: inline-block;
+  padding: 0.35rem 0.9rem;
+  border: 1px solid #2f6f8f;
+  background-color: #f4fbff;
+  font-weight: 700;
+  margin: 1.4rem 0 1rem;
+}
+
+.section-title {
+    background-color: #f4fbff;
+    border: 1px solid #2f6f8f;
+  font-size: 1.4rem;
+}
+
+.subsection-title {
+  font-size: 1.1rem;
+}
+
+/* =========================================================
+   Music grid
+   ========================================================= */
+
+.music-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (max-width: 800px) {
+  .music-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.music-right button {
+  width: 100%;
+  padding: 0.6rem 0.8rem;
+  border: 0px solid #2f6f8f;
+  background-color: #f4fbff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.music-right button:hover {
+  filter: brightness(0.98);
+}
+
+/* =========================================================
+   Books (FINAL FIX)
+   ========================================================= */
+
+.book-list {
+  margin-top: 1rem;
+}
+
+.book-main {
+  display: grid;
+  grid-template-columns: 1fr 220px;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.book-cover img {
+  width: 220px;
+  max-width: 100%;
+  height: auto;
+  display: block;
+  border: 1px solid #2f6f8f;
+}
+
+.book-synopsis {
+  margin: 0.6rem 0;
+}
+
+.book-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.6rem;
+  margin-top: 0.6rem;
+}
+
+.book-links a {
+  display: inline-block;
+  padding: 0.25rem 0.6rem;
+  border: 1px solid #2f6f8f;
+  background-color: #f4fbff;
+  color: #1f4f67;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.book-links a:hover {
+  text-decoration: underline;
+}
+
+/* Responsive books */
+@media (max-width: 800px) {
+  .book-main {
+    grid-template-columns: 1fr;
+  }
+
+  .book-cover img {
+    width: 200px;
+  }
+}
+
+/* =========================================================
+   Footer
+   ========================================================= */
+
+.footer {
+  text-align: center;
+  margin-top: 2rem;
+  padding: 1rem 0;
+  color: #1f4f67;
+}
+
+
+/* Reduce the giant top gap on the Home section */
+#home.section {
+  padding-top: 0.5rem;   /* was 2rem */
+}
+
+#home .name-box {
+  margin-top: 0.75rem;   /* was 2rem */
+}
+
+/* Optional: if you still want a tighter header-to-content gap */
+.navbar {
+  margin-bottom: 0.75rem; /* was 1.5rem */
+}
+
+
+/* =========================================================
+   Center main section headings
+   ========================================================= */
+
+
+.section {  
+  padding-top: 0;
+}
+
+.section > h2 {
+    background-color: #f4fbff;
+    border: 0px solid #2f6f8f;
+    text-align: center;
+    margin-top: 0;
+}
+
+
+/* =========================================================
+   Music section: use space better + tighter badges
+   ========================================================= */
+
+.music-grid{
+  /* left takes remaining space; right only as wide as its content */
+  grid-template-columns: 1fr auto;
+  gap: 1rem;                 /* reduce empty space between columns */
+  align-items: start;
+}
+
+/* Make the right column hug the content and sit flush right */
+.music-right{
+  display: grid;
+  grid-template-rows: repeat(3, auto);
+  row-gap: 0.45rem;          /* tighter vertical spacing */
+  align-content: start;
+  justify-items: end;        /* align buttons to the right edge */
+  padding-top: 0.15rem;      /* tiny nudge for line alignment */
+}
+
+/* Remove default paragraph spacing that can throw alignment off */
+.music-right p{
+  margin: 0;
+}
+
+/* Smaller, tighter “badge” buttons */
+.music-right button{
+  width: auto;
+  min-width: 150px;          /* shorter */
+  padding: 0.25rem 0.7rem;   /* tighter */
+  font-size: 0.95em;         /* slightly smaller than body text */
+  border: 1px solid #2f6f8f;
+  background-color: #f4fbff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* Make bullet spacing match the badge spacing */
+.music-left ul{
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.music-left li{
+  margin: 0 0 0.45rem 0;     /* match .music-right row-gap */
+}
+
+/* Optional: on very narrow screens, let badges align left */
+@media (max-width: 800px){
+  .music-grid{ grid-template-columns: 1fr; }
+  .music-right{ justify-items: start; }
+}
+
+/* ===== Music badges: move cluster left + center-align within cluster ===== */
+
+.music-grid{
+  /* keep your grid, just control the spacing */
+  column-gap: 2.5rem;   /* creates room between text and badge cluster */
+}
+
+.music-right{
+  /* make the badge column a fixed-ish width so it sits "halfway in" */
+  width: 320px;         /* adjust 260–360 to taste */
+  max-width: 40vw;
+
+  /* pull the whole cluster left into the blank space */
+  margin-left: -140px;  /* adjust -80 to -180 to taste */
+
+  /* stack + center the badges relative to each other */
+  display: flex;
+  flex-direction: column;
+  align-items: center;  /* center all badges as a group */
+  gap: 0.7rem;
+}
+
+.music-right p{
+  margin: 0;
+}
+
+.music-right button{
+  width: 220px;         /* uniform badge width */
+  padding: 0.35rem 0.6rem;
+  font-size: 0.95em;
+}
+
+/* On small screens, don't do the pull-left trick */
+@media (max-width: 800px){
+  .music-right{
+    width: auto;
+    max-width: none;
+    margin-left: 0;
+    align-items: flex-start;
+  }
+
+  .music-right button{
+    width: 100%;
+  }
+}
+
+.back-to-top {
+  text-align: right;
+  margin-top: 1.2rem;
+}
+
+.back-to-top a {
+  font-size: 0.85em;
+  text-decoration: none;
+  color: #1f4f67;
+  border: 1px solid #2f6f8f;
+  padding: 0.15rem 0.5rem;
+}
+
+.back-to-top a:hover {
+  text-decoration: underline;
+}
+
