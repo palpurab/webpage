@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Consonance Checker</title>
+
+  <style>
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      margin: 16px;
+      line-height: 1.35;
+    }
+
+    .wrap {
+      max-width: 920px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin-bottom: 6px;
+    }
+
+    .description {
+      font-size: 0.95rem;
+      color: #333;
+      margin-bottom: 18px;
+    }
+
+    .controls {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      align-items: end;
+    }
+
+    .notes {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+      margin-bottom: 22px;
+    }
+
+    /* KEY FIX: constrain the frequency column so it cannot overlap the toggle */
+    .note-row {
+      display: grid;
+      grid-template-columns: 90px minmax(220px, 420px) 92px 240px;
+      gap: 14px;
+      align-items: center;
+      padding: 12px 12px;
+      border: 1px solid #ddd;
+      border-radius: 12px;
+    }
+
+    label {
+      font-weight: 700;
+      font-size: 1.05rem;
+    }
+
+    .freq-wrap {
+      display: grid;
+      gap: 4px;
+    }
+
+    /* KEY FIX: keep the input inside its own column and never overflow */
+    .freq-wrap input[type="number"] {
+      width: 100%;
+      max-width: 420px;
+      box-sizing: border-box;
+      padding: 7px 8px;
+    }
+
+    .small {
+      font-size: 0.9rem;
+      color: #444;
+    }
+
+    select, button, input[type="range"] {
+      width: 100%;
+    }
+
+    button {
+      padding: 8px 10px;
+    }
+
+    .vol-wrap {
+      display: grid;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .vol-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border: 1px solid #ccc;
+      border-radius: 999px;
+      font-size: 0.8rem;
+    }
+
+    .footer {
+      margin-top: 24px;
+      font-size: 0.85rem;
+      color: #444;
+      text-align: center;
+    }
+
+    .footer a {
+      color: inherit;
+      text-decoration: underline;
+    }
+
+    /* On smaller screens, stack cleanly */
+    @media (max-width: 760px) {
+      .note-row {
+        grid-template-columns: 1fr;
+      }
+      .freq-wrap input[type="number"] {
+        max-width: none;
+      }
+    }
+  </style>
+</head>
+
+<body>
+<div class="wrap">
+
+  <h1>Consonance Checker</h1>
+
+  <div class="description">
+    Type frequencies (Hz) of your choice in the boxes below marked as “Notes”.
+    Play different frequencies together by toggling channels On.
+    You can play up to five notes at once, and decide for yourself whether you
+    want to call them consonant or dissonant.
+    <br><br>
+    The default waveform is a sine wave, but you can change the waveform type
+    to hear how different shapes of waves sound—and whether that alters your
+    sense of consonance or dissonance.
+  </div>
+
+  <div class="controls">
+    <div style="flex:1 1 220px;">
+      <label>Waveform</label>
+      <select id="waveform">
+        <option value="sine">sine</option>
+        <option value="triangle">triangle</option>
+        <option value="square">square</option>
+        <option value="sawtooth">sawtooth</option>
+      </select>
+    </div>
+
+    <div style="flex:1 1 260px;">
+      <label>Master Volume <span class="pill" id="masterLabel">0.20</span></label>
+      <input id="masterVol" type="range" min="0" max="1" step="0.01" value="0.20">
+    </div>
+  </div>
+
+  <div class="notes" id="notes"></div>
+
+  <div class="footer">
+    © <a href="mailto:palpurab@gmail.com">Purab Pal</a>, 2026<br>
+    For comments or concerns, click on the name above.
+  </div>
+
+</div>
+
+<script>
+(() => {
+  const NUM_NOTES = 5;
+  let audioCtx = null;
+  let masterGain = null;
+
+  const waveformEl = document.getElementById("waveform");
+  const notesEl = document.getElementById("notes");
+  const masterVol = document.getElementById("masterVol");
+  const masterLabel = document.getElementById("masterLabel");
+
+  const notes = Array.from({ length: NUM_NOTES }, (_, i) => ({
+    id: i + 1,
+    freq: 440,
+    vol: 0.15,
+    osc: null,
+    gain: null,
+    on: false
+  }));
+
+  function ensureAudio() {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      masterGain = audioCtx.createGain();
+      masterGain.gain.value = parseFloat(masterVol.value);
+      masterGain.connect(audioCtx.destination);
+    }
+  }
+
+  function fade(param, value, t = 0.02) {
+    const now = audioCtx.currentTime;
+    param.cancelScheduledValues(now);
+    param.setValueAtTime(param.value, now);
+    param.linearRampToValueAtTime(value, now + t);
+  }
+
+  function start(note) {
+    ensureAudio();
+    if (audioCtx.state === "suspended") audioCtx.resume();
+
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+
+    osc.type = waveformEl.value;
+    osc.frequency.value = note.freq;
+    gain.gain.value = 0;
+
+    osc.connect(gain);
+    gain.connect(masterGain);
+    osc.start();
+
+    fade(gain.gain, note.vol, 0.03);
+
+    note.osc = osc;
+    note.gain = gain;
+    note.on = true;
+  }
+
+  function stop(note) {
+    if (!note.on) return;
+
+    fade(note.gain.gain, 0, 0.03);
+
+    setTimeout(() => {
+      try { note.osc.stop(); } catch (_) {}
+      try { note.osc.disconnect(); } catch (_) {}
+      try { note.gain.disconnect(); } catch (_) {}
+      note.osc = null;
+      note.gain = null;
+      note.on = false;
+    }, 40);
+  }
+
+  function clampFreq(x) {
+    if (!Number.isFinite(x)) return 440;
+    return Math.min(20000, Math.max(20, x));
+  }
+
+  function clampVol(x) {
+    if (!Number.isFinite(x)) return 0.15;
+    return Math.min(1, Math.max(0, x));
+  }
+
+  function render() {
+    notesEl.innerHTML = "";
+
+    notes.forEach(note => {
+      const row = document.createElement("div");
+      row.className = "note-row";
+
+      row.innerHTML = `
+        <label>Note ${note.id}</label>
+
+        <div class="freq-wrap">
+          <input type="number" min="20" max="20000" step="0.1" value="${note.freq}">
+          <div class="small">Frequency (Hz)</div>
+        </div>
+
+        <button type="button" class="toggle">${note.on ? "On" : "Off"}</button>
+
+        <div class="vol-wrap">
+          <input type="range" min="0" max="1" step="0.01" value="${note.vol}">
+          <div class="vol-label small">
+            <span>Volume</span>
+            <span class="pill">${note.vol.toFixed(2)}</span>
+          </div>
+        </div>
+      `;
+
+      const freqInput = row.querySelector('input[type="number"]');
+      const toggleBtn = row.querySelector(".toggle");
+      const volSlider = row.querySelector('input[type="range"]');
+      const volPill = row.querySelector(".vol-label .pill");
+
+      freqInput.oninput = () => {
+        const f = clampFreq(parseFloat(freqInput.value));
+        note.freq = f;
+        if (note.on && note.osc) note.osc.frequency.value = f;
+      };
+
+      volSlider.oninput = () => {
+        const v = clampVol(parseFloat(volSlider.value));
+        note.vol = v;
+        volPill.textContent = v.toFixed(2);
+        if (note.on && note.gain) fade(note.gain.gain, v, 0.02);
+      };
+
+      toggleBtn.onclick = () => {
+        if (note.on) {
+          stop(note);
+          toggleBtn.textContent = "Off";
+        } else {
+          start(note);
+          toggleBtn.textContent = "On";
+        }
+      };
+
+      notesEl.appendChild(row);
+    });
+  }
+
+  waveformEl.onchange = () => {
+    notes.forEach(n => { if (n.on && n.osc) n.osc.type = waveformEl.value; });
+  };
+
+  masterVol.oninput = () => {
+    const v = parseFloat(masterVol.value);
+    masterLabel.textContent = v.toFixed(2);
+    if (masterGain && audioCtx) fade(masterGain.gain, v, 0.02);
+  };
+
+  render();
+})();
+</script>
+
+</body>
+</html>
