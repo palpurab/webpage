@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Equal N Notes in an Octave</title>
+
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 16px; line-height: 1.35; background-color: #faf8f4; }
+    .wrap { max-width: 920px; margin: 0 auto; }
+    h1 { margin: 0 0 8px; }
+    .desc { font-size: 0.95rem; color:#333; margin: 0 0 18px; }
+    .panel { border: 1px solid #ddd; border-radius: 12px; padding: 12px; margin: 12px 0; }
+    .row { display: grid; grid-template-columns: 180px 1fr; gap: 12px; align-items: center; margin: 10px 0; }
+    label { font-weight: 700; }
+    input[type="number"], select { width: 100%; padding: 7px 8px; box-sizing: border-box; }
+    input[type="range"] { width: 100%; }
+    .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+    button { padding: 10px 10px; width: 100%; }
+    .small { font-size: 0.9rem; color:#444; }
+    .pill { display:inline-block; padding:2px 8px; border:1px solid #ccc; border-radius:999px; font-size:0.8rem; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .footer { margin-top: 18px; font-size: 0.85rem; color:#444; text-align:center; }
+    .footer a { color: inherit; text-decoration: underline; }
+    @media (max-width: 720px) {
+      .row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+
+<body>
+<div class="wrap">
+  <h1>Equal N Notes in an Octave</h1>
+  <p class="desc">
+  Make your own octave, divided into <span class="pill">N</span> intervals.
+    Choose <span class="pill">N</span>, and this will play all <span class="pill">N</span> notes in one octave,
+    equally spaced in ratio (equal division of the octave). No scale names, just listening.
+  </p>
+
+  <div class="panel">
+    <div class="row">
+      <label for="baseHz">Base frequency (Hz)</label>
+      <input id="baseHz" type="number" min="20" max="20000" step="0.1" value="220" />
+    </div>
+
+    <div class="row">
+      <label for="N">Number of equal parts (N)</label>
+      <input id="N" type="number" min="2" max="96" step="1" value="12" />
+    </div>
+
+    <div class="row">
+      <label for="waveform">Waveform</label>
+      <select id="waveform">
+        <option value="sine">sine</option>
+        <option value="triangle">triangle</option>
+        <option value="square">square</option>
+        <option value="sawtooth">sawtooth</option>
+      </select>
+    </div>
+
+    <div class="row">
+      <label for="noteDur">Note duration (ms) <span class="pill" id="durLabel">300</span></label>
+      <input id="noteDur" type="range" min="80" max="1200" step="10" value="300" />
+    </div>
+
+    <div class="row">
+      <label for="gapDur">Gap between notes (ms) <span class="pill" id="gapLabel">40</span></label>
+      <input id="gapDur" type="range" min="0" max="400" step="10" value="40" />
+    </div>
+
+    <div class="row">
+      <label for="masterVol">Master volume <span class="pill" id="mLabel">0.20</span></label>
+      <input id="masterVol" type="range" min="0" max="1" step="0.01" value="0.20" />
+    </div>
+
+    <div class="two">
+      <button id="playBtn">Play all N notes</button>
+      <button id="stopBtn">Stop</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="small">Computed frequencies (within one octave)</div>
+    <div class="mono" id="readout" style="margin-top:8px;"></div>
+  </div>
+
+  <div class="footer">
+    © <a href="mailto:palpurab@gmail.com">Purab Pal</a>, 2026<br>
+    For comments or concerns, click on the name above.
+  </div>
+</div>
+
+<script>
+(() => {
+  let audioCtx = null;
+  let masterGain = null;
+
+  const baseHzEl  = document.getElementById("baseHz");
+  const NEl       = document.getElementById("N");
+  const waveformEl= document.getElementById("waveform");
+  const noteDurEl = document.getElementById("noteDur");
+  const gapDurEl  = document.getElementById("gapDur");
+  const masterVolEl = document.getElementById("masterVol");
+
+  const durLabel  = document.getElementById("durLabel");
+  const gapLabel  = document.getElementById("gapLabel");
+  const mLabel    = document.getElementById("mLabel");
+
+  const playBtn   = document.getElementById("playBtn");
+  const stopBtn   = document.getElementById("stopBtn");
+  const readout   = document.getElementById("readout");
+
+  // Keep track of currently scheduled oscillators so Stop can cancel them.
+  let activeNodes = [];
+  let playing = false;
+
+  function ensureAudio() {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      masterGain = audioCtx.createGain();
+      masterGain.gain.value = parseFloat(masterVolEl.value);
+      masterGain.connect(audioCtx.destination);
+    }
+  }
+
+  function clampFreq(x) {
+    if (!Number.isFinite(x)) return 220;
+    return Math.min(20000, Math.max(20, x));
+  }
+  function clampN(x) {
+    if (!Number.isFinite(x)) return 12;
+    return Math.min(96, Math.max(2, Math.round(x)));
+  }
+
+  function computeFrequencies() {
+    const base = clampFreq(parseFloat(baseHzEl.value));
+    const N = clampN(parseFloat(NEl.value));
+    NEl.value = N;
+
+    const r = Math.pow(2, 1 / N);
+    const freqs = [];
+    for (let i = 0; i < N; i++) {
+      freqs.push(base * Math.pow(r, i));
+    }
+    return { base, N, r, freqs };
+  }
+
+  function updateReadout() {
+    const { base, N, r, freqs } = computeFrequencies();
+    const lines = [];
+    lines.push(`base = ${base.toFixed(3)} Hz`);
+    lines.push(`N = ${N}`);
+    lines.push(`step ratio r = 2^(1/N) = ${r.toFixed(10)}`);
+    lines.push("");
+    freqs.forEach((f, i) => {
+      lines.push(`${String(i).padStart(2,"0")}: ${f.toFixed(3)} Hz`);
+    });
+    readout.textContent = lines.join("\n");
+  }
+
+  function fade(param, value, t = 0.01) {
+    const now = audioCtx.currentTime;
+    param.cancelScheduledValues(now);
+    param.setValueAtTime(param.value, now);
+    param.linearRampToValueAtTime(value, now + t);
+  }
+
+  function stopAll() {
+    if (!audioCtx) return;
+    playing = false;
+
+    // Fade out quickly and stop everything we created.
+    const tNow = audioCtx.currentTime;
+    for (const node of activeNodes) {
+      try { node.gain.gain.cancelScheduledValues(tNow); } catch {}
+      try { node.gain.gain.setValueAtTime(node.gain.gain.value, tNow); } catch {}
+      try { node.gain.gain.linearRampToValueAtTime(0, tNow + 0.03); } catch {}
+      try { node.osc.stop(tNow + 0.05); } catch {}
+      try { node.osc.disconnect(); } catch {}
+      try { node.gain.disconnect(); } catch {}
+    }
+    activeNodes = [];
+  }
+
+  function playAllN() {
+    ensureAudio();
+    if (audioCtx.state === "suspended") audioCtx.resume();
+
+    stopAll(); // stop anything already playing
+
+    const { freqs } = computeFrequencies();
+    const waveform = waveformEl.value;
+
+    const noteMs = parseInt(noteDurEl.value, 10);
+    const gapMs  = parseInt(gapDurEl.value, 10);
+
+    const noteSec = noteMs / 1000;
+    const gapSec  = gapMs / 1000;
+    const stepSec = noteSec + gapSec;
+
+    const t0 = audioCtx.currentTime + 0.03; // small safety offset
+    const perNoteVol = 0.25; // internal; master slider is the main loudness
+
+    playing = true;
+
+    freqs.forEach((f, i) => {
+      const startTime = t0 + i * stepSec;
+      const stopTime  = startTime + noteSec;
+
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+
+      osc.type = waveform;
+      osc.frequency.setValueAtTime(f, startTime);
+
+      // Gentle fade in/out to avoid clicks
+      gain.gain.setValueAtTime(0.0, startTime);
+      gain.gain.linearRampToValueAtTime(perNoteVol, startTime + 0.01);
+      gain.gain.setValueAtTime(perNoteVol, Math.max(startTime + 0.02, stopTime - 0.03));
+      gain.gain.linearRampToValueAtTime(0.0, stopTime);
+
+      osc.connect(gain);
+      gain.connect(masterGain);
+
+      osc.start(startTime);
+      osc.stop(stopTime);
+
+      activeNodes.push({ osc, gain });
+    });
+
+    // Cleanup after the run finishes
+    const totalSec = freqs.length * stepSec + 0.2;
+    setTimeout(() => {
+      // If user pressed Stop, activeNodes is already cleared.
+      activeNodes = activeNodes.filter(n => {
+        // best-effort cleanup; nodes that already ended may throw on disconnect
+        try { n.osc.disconnect(); } catch {}
+        try { n.gain.disconnect(); } catch {}
+        return false;
+      });
+      playing = false;
+    }, Math.ceil(totalSec * 1000));
+  }
+
+  // UI wiring
+  baseHzEl.addEventListener("input", updateReadout);
+  NEl.addEventListener("input", updateReadout);
+
+  waveformEl.addEventListener("change", () => {
+    updateReadout();
+  });
+
+  noteDurEl.addEventListener("input", () => {
+    durLabel.textContent = noteDurEl.value;
+  });
+
+  gapDurEl.addEventListener("input", () => {
+    gapLabel.textContent = gapDurEl.value;
+  });
+
+  masterVolEl.addEventListener("input", () => {
+    const v = parseFloat(masterVolEl.value);
+    mLabel.textContent = v.toFixed(2);
+    if (masterGain && audioCtx) fade(masterGain.gain, v, 0.02);
+  });
+
+  playBtn.addEventListener("click", playAllN);
+  stopBtn.addEventListener("click", () => { stopAll(); });
+
+  // Init
+  durLabel.textContent = noteDurEl.value;
+  gapLabel.textContent = gapDurEl.value;
+  mLabel.textContent = parseFloat(masterVolEl.value).toFixed(2);
+  updateReadout();
+})();
+</script>
+</body>
+</html>

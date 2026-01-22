@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Blind Consonance Test</title>
+
+  <style>
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      margin: 16px;
+      line-height: 1.35;
+      background-color: #f6f7fa;
+    }
+
+    .wrap { max-width: 820px; margin: 0 auto; }
+    h1 { margin-bottom: 6px; }
+
+    .desc {
+      font-size: 0.95rem;
+      color: #333;
+      margin-bottom: 18px;
+    }
+
+    .panel {
+      border: 1px solid #ddd;
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 18px;
+      background: rgba(255,255,255,0.55);
+    }
+
+    .two {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    button {
+      padding: 12px;
+      font-size: 1rem;
+      width: 100%;
+      cursor: pointer;
+    }
+
+    .center { text-align: center; }
+
+    .small {
+      font-size: 0.9rem;
+      color: #444;
+    }
+
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.9rem;
+      margin-top: 10px;
+      display: none;
+      text-align: left;
+      line-height: 1.4;
+    }
+
+    .footer {
+      margin-top: 20px;
+      font-size: 0.85rem;
+      color: #444;
+      text-align: center;
+    }
+
+    .footer a {
+      color: inherit;
+      text-decoration: underline;
+    }
+
+    @media (max-width: 640px) {
+      .two { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+
+<body>
+<div class="wrap">
+
+  <h1>Blind Consonance Test</h1>
+
+  <div class="desc">
+    Two anonymous sound-pairs are presented below as <strong>Pair A</strong> and <strong>Pair B</strong>.
+    No frequencies or ratios are shown.
+    <br><br>
+    Listen to each pair and decide whether one of them feels more consonant, or whether they feel similar in terms of consonance.
+    You may reveal the underlying frequencies afterward, if you wish.
+  </div>
+
+  <div class="panel two">
+    <button id="playA">Play Pair A</button>
+    <button id="playB">Play Pair B</button>
+  </div>
+
+  <div class="panel center">
+    <button id="answerBtn">Reveal answer</button>
+    <div class="small" id="answer" style="margin-top:10px; display:none;"></div>
+
+    <hr style="margin:16px 0;">
+
+    <button id="revealBtn">Reveal frequencies</button>
+    <div class="mono" id="reveal"></div>
+  </div>
+
+  <div class="panel center small">
+    Reload the page (or refresh) to generate a new blind comparison.
+  </div>
+
+  <div class="footer">
+    © <a href="mailto:palpurab@gmail.com">Purab Pal</a>, 2026<br>
+    For comments or concerns, click on the name above.
+  </div>
+
+</div>
+
+<script>
+(() => {
+  let audioCtx = null;
+  let masterGain = null;
+
+  function ensureAudio() {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      masterGain = audioCtx.createGain();
+      masterGain.gain.value = 0.25;
+      masterGain.connect(audioCtx.destination);
+    }
+  }
+
+  function playPair(f1, f2) {
+    ensureAudio();
+    if (audioCtx.state === "suspended") audioCtx.resume();
+
+    const now = audioCtx.currentTime;
+    const dur = 1.6;
+
+    const o1 = audioCtx.createOscillator();
+    const o2 = audioCtx.createOscillator();
+    const g1 = audioCtx.createGain();
+    const g2 = audioCtx.createGain();
+
+    o1.type = "sine";
+    o2.type = "sine";
+
+    o1.frequency.value = f1;
+    o2.frequency.value = f2;
+
+    g1.gain.setValueAtTime(0, now);
+    g2.gain.setValueAtTime(0, now);
+
+    o1.connect(g1); g1.connect(masterGain);
+    o2.connect(g2); g2.connect(masterGain);
+
+    o1.start(now);
+    o2.start(now);
+
+    // fade in
+    g1.gain.linearRampToValueAtTime(0.18, now + 0.05);
+    g2.gain.linearRampToValueAtTime(0.18, now + 0.05);
+
+    // fade out
+    g1.gain.linearRampToValueAtTime(0, now + dur);
+    g2.gain.linearRampToValueAtTime(0, now + dur);
+
+    o1.stop(now + dur + 0.05);
+    o2.stop(now + dur + 0.05);
+  }
+
+  // --- Blind pair generation ---
+  const base = 200 + Math.random() * 200;
+
+  // Small-integer-ish ratios, within one octave (1–2)
+  const ratios = [
+    16/15, 9/8, 6/5, 5/4, 4/3, 7/5, 3/2, 8/5
+  ];
+
+  function randomPair() {
+    const r = ratios[Math.floor(Math.random() * ratios.length)];
+    return [base, base * r];
+  }
+
+  let pairA = randomPair();
+  let pairB = randomPair();
+
+  // Ensure not accidentally too similar
+  while (Math.abs(pairA[1] - pairB[1]) < 5) {
+    pairB = randomPair();
+  }
+
+  document.getElementById("playA").onclick = () => playPair(pairA[0], pairA[1]);
+  document.getElementById("playB").onclick = () => playPair(pairB[0], pairB[1]);
+
+  // --- "Reveal frequencies" ---
+  document.getElementById("revealBtn").onclick = () => {
+    const r = document.getElementById("reveal");
+    r.style.display = "block";
+    r.innerHTML =
+      `Pair A: ${pairA[0].toFixed(2)} Hz , ${pairA[1].toFixed(2)} Hz<br>` +
+      `Pair B: ${pairB[0].toFixed(2)} Hz , ${pairB[1].toFixed(2)} Hz`;
+  };
+
+  // --- Consonance heuristic + "Reveal answer" ---
+  // Score = (distance to nearest simple rational) + (small penalty for complexity).
+  // This prevents most ties when both are exact rationals.
+  function consonanceScore(f1, f2) {
+    const r = f2 / f1;
+    let best = Infinity;
+
+    const MAX = 16;         // allow a/b up to 16 for the search grid
+    const LAMBDA = 0.001;   // complexity weight (small)
+
+    for (let a = 1; a <= MAX; a++) {
+      for (let b = 1; b <= MAX; b++) {
+        const ratio = a / b;
+        const distance = Math.abs(r - ratio);
+        const complexity = (a + b);
+        const score = distance + LAMBDA * complexity;
+        if (score < best) best = score;
+      }
+    }
+    return best;
+  }
+
+  document.getElementById("answerBtn").onclick = () => {
+    const sA = consonanceScore(pairA[0], pairA[1]);
+    const sB = consonanceScore(pairB[0], pairB[1]);
+
+    let verdict;
+    if (Math.abs(sA - sB) < 1e-7) {
+      verdict = "According to this heuristic, both pairs are equally consonant.";
+    } else {
+      verdict = "According to this heuristic, " + (sA < sB ? "Pair A" : "Pair B") + " is more consonant.";
+    }
+
+    const ans = document.getElementById("answer");
+    ans.style.display = "block";
+    ans.textContent = verdict;
+  };
+})();
+</script>
+
+</body>
+</html>
