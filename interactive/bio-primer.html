@@ -1,0 +1,535 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Quick qPCR Primer Finder (Ensembl + heuristic)</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 18px; color:#111; }
+    .wrap { max-width: 980px; margin: 0 auto; }
+    h1 { font-size: 1.25rem; margin: 0 0 10px; }
+    .card { border: 1px solid #ccc; border-radius: 10px; padding: 14px; margin: 12px 0; }
+    label { display:block; font-weight: 650; margin-top: 10px; }
+    input, select, button, textarea {
+      width: 100%; box-sizing: border-box;
+      padding: 10px; border-radius: 8px; border: 1px solid #bbb;
+      font-size: 1rem;
+    }
+    button { cursor:pointer; font-weight:700; border: 1px solid #444; background:#f6f6f6; }
+    button:hover { background:#efefef; }
+    .row { display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .small { font-size: 0.92rem; color:#333; }
+    .muted { color:#666; }
+    .error { color:#b00020; font-weight: 650; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border-top: 1px solid #ddd; padding: 10px; vertical-align: top; }
+    th { text-align:left; font-size: 0.95rem; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.95rem; }
+    .pill { display:inline-block; padding: 2px 10px; border:1px solid #bbb; border-radius: 999px; margin-right:8px; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; }
+    .actions a { text-decoration:none; border:1px solid #444; border-radius:8px; padding:8px 10px; font-weight:700; color:#111; background:#fafafa; }
+    .actions a:hover { background:#f0f0f0; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Quick qPCR Primer Designer</h1>
+  <div class="small muted">
+    Front-end demo: pulls cDNA sequence from Ensembl REST and proposes candidate primer pairs.
+    Always validate with Primer-BLAST / in-silico PCR before ordering.
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <div>
+        <label for="gene">Gene symbol</label>
+        <input id="gene" placeholder="e.g., ACTB, GAPDH, ESR1" />
+      </div>
+      <div>
+        <label for="org">Organism</label>
+        <select id="org">
+          <option value="homo_sapiens">Human (homo_sapiens)</option>
+          <option value="mus_musculus">Mouse (mus_musculus)</option>
+          <option value="rattus_norvegicus">Rat (rattus_norvegicus)</option>
+          <option value="danio_rerio">Zebrafish (danio_rerio)</option>
+          <option value="drosophila_melanogaster">Fruit fly (drosophila_melanogaster)</option>
+          <option value="saccharomyces_cerevisiae">Yeast (saccharomyces_cerevisiae)</option>
+          <option value="custom">Custom (type below)</option>
+        </select>
+        <input id="customOrg" placeholder="Ensembl species name, e.g. gallus_gallus" style="display:none; margin-top:10px;" />
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:8px;">
+      <div>
+        <label for="nPairs">How many primer pairs</label>
+        <input id="nPairs" type="number" min="1" max="25" value="5" />
+      </div>
+      <div>
+        <label for="targetTm">Target Tm (°C)</label>
+        <input id="targetTm" type="number" min="45" max="70" value="60" />
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:8px;">
+      <div>
+        <label for="ampMin">Amplicon size min (bp)</label>
+        <input id="ampMin" type="number" min="50" max="400" value="80" />
+      </div>
+      <div>
+        <label for="ampMax">Amplicon size max (bp)</label>
+        <input id="ampMax" type="number" min="60" max="500" value="160" />
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:8px;">
+      <div>
+        <label for="primerMin">Primer length min</label>
+        <input id="primerMin" type="number" min="16" max="30" value="18" />
+      </div>
+      <div>
+        <label for="primerMax">Primer length max</label>
+        <input id="primerMax" type="number" min="16" max="35" value="24" />
+      </div>
+    </div>
+
+    <div style="margin-top:12px;">
+      <button id="go">Find primer candidates</button>
+      <div id="status" class="small muted" style="margin-top:10px;"></div>
+      <div id="err" class="error" style="margin-top:8px;"></div>
+    </div>
+  </div>
+
+  <div class="card" id="summaryCard" style="display:none;">
+    <div id="summary"></div>
+    <div class="actions" id="links"></div>
+  </div>
+
+  <div class="card" id="resultsCard" style="display:none;">
+    <h2 style="font-size:1.05rem; margin:0 0 10px;">Primer pairs</h2>
+    <div class="small muted" style="margin-bottom:10px;">
+      Scores favor: Tm near target, GC 40–60%, 3' GC clamp, minimal homopolymers, amplicon within range.
+    </div>
+    <div style="overflow:auto;">
+      <table id="table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Forward (5'→3')</th>
+            <th>Reverse (5'→3')</th>
+            <th>Amplicon</th>
+            <th>Tm / GC</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 style="font-size:1.05rem; margin:0 0 10px;">What this does / doesn’t do</h2>
+    <ul class="small">
+      <li><b>Does:</b> pulls a cDNA sequence for a transcript from Ensembl; proposes quick candidate primer pairs.</li>
+      <li><b>Doesn’t:</b> guarantee specificity, avoid pseudogenes, force exon–exon junction spanning, or account for splice isoforms rigorously.</li>
+      <li><b>Best practice:</b> take a top pair → validate in NCBI Primer-BLAST / UCSC in-silico PCR; prefer exon-junction primers for RT-qPCR to reduce genomic DNA amplification.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+/* ---------- Utilities ---------- */
+const ENSEMBL = "https://rest.ensembl.org";
+
+function cleanGene(x){ return (x||"").trim(); }
+
+function gcContent(seq){
+  const s = seq.toUpperCase();
+  let gc = 0;
+  for (const c of s) if (c === "G" || c === "C") gc++;
+  return (gc / s.length) * 100;
+}
+
+// Simple Tm approximation (Wallace-ish with salt-ish tweak).
+// For qPCR design you usually target ~58–62°C; we just need a ranking heuristic.
+function tmApprox(seq){
+  const s = seq.toUpperCase();
+  let a=0,t=0,g=0,c=0;
+  for (const ch of s){
+    if (ch==="A") a++;
+    else if (ch==="T") t++;
+    else if (ch==="G") g++;
+    else if (ch==="C") c++;
+  }
+  const n = s.length;
+  // Basic formula: 2*(A+T) + 4*(G+C) then mild adjustment for length
+  let tm = 2*(a+t) + 4*(g+c);
+  if (n > 20) tm -= (n - 20) * 0.5;
+  return tm;
+}
+
+function revComp(seq){
+  const map = {A:"T", T:"A", G:"C", C:"G", a:"t", t:"a", g:"c", c:"g", N:"N", n:"n"};
+  return seq.split("").reverse().map(ch => map[ch] ?? "N").join("").toUpperCase();
+}
+
+function hasBadHomopolymer(seq){
+  return /(AAAAA|TTTTT|GGGGG|CCCCC)/i.test(seq);
+}
+
+function hasAmbiguous(seq){
+  return /[^ACGT]/i.test(seq);
+}
+
+function threePrimeClampScore(seq){
+  // Prefer last base G/C (clamp). Give partial credit if last 2 contain G/C.
+  const s = seq.toUpperCase();
+  const last = s[s.length-1];
+  const last2 = s.slice(-2);
+  let score = 0;
+  if (last === "G" || last === "C") score += 2;
+  if (/[GC]/.test(last2)) score += 1;
+  return score; // 0..3
+}
+
+// Very rough self-complementarity check: count max contiguous matches to reverse complement.
+// (Not a full dimer/hairpin model; just a quick penalty.)
+function maxContigMatch(a, b){
+  // b should be reverse complement-ish target
+  let max = 0;
+  for (let i=0; i<a.length; i++){
+    for (let j=0; j<b.length; j++){
+      let k=0;
+      while (i+k < a.length && j+k < b.length && a[i+k] === b[j+k]) k++;
+      if (k > max) max = k;
+    }
+  }
+  return max;
+}
+
+function selfDimerPenalty(seq){
+  const s = seq.toUpperCase();
+  const rc = revComp(s);
+  const m = maxContigMatch(s, rc);
+  // Penalize long contiguous complementarity (>= 4 is suspicious)
+  return Math.max(0, m - 3); // 0.. (rough)
+}
+
+function pairDimerPenalty(fwd, rev){
+  const f = fwd.toUpperCase();
+  const r = rev.toUpperCase();
+  const rrc = revComp(r); // complementarity with reverse primer
+  const m = maxContigMatch(f, rrc);
+  return Math.max(0, m - 3);
+}
+
+function within(x, lo, hi){ return x >= lo && x <= hi; }
+
+function format1(x){ return Math.round(x*10)/10; }
+
+/* ---------- Ensembl calls ---------- */
+async function ensemblGetJson(path){
+  const url = `${ENSEMBL}${path}`;
+  const resp = await fetch(url, { headers: { "Accept": "application/json" }});
+  if (!resp.ok) throw new Error(`Ensembl error ${resp.status} for ${path}`);
+  return await resp.json();
+}
+
+async function ensemblGetText(path){
+  const url = `${ENSEMBL}${path}`;
+  const resp = await fetch(url, { headers: { "Accept": "text/plain" }});
+  if (!resp.ok) throw new Error(`Ensembl error ${resp.status} for ${path}`);
+  return await resp.text();
+}
+
+function pickBestTranscript(lookup){
+  // Prefer canonical if marked; else protein_coding; else first transcript.
+  if (!lookup?.Transcript?.length) return null;
+  const txs = lookup.Transcript.slice();
+
+  // If any has is_canonical, prefer it.
+  const canonical = txs.find(t => t.is_canonical === 1);
+  if (canonical) return canonical;
+
+  // Prefer protein_coding biotype
+  const pc = txs.find(t => (t.biotype || "").toLowerCase() === "protein_coding");
+  if (pc) return pc;
+
+  return txs[0];
+}
+
+/* ---------- Primer design heuristic ---------- */
+function designPrimers(cdna, opts){
+  const seq = cdna.toUpperCase().replace(/[^ACGT]/g, ""); // keep simple
+  if (seq.length < 250) throw new Error("Transcript cDNA is too short for robust qPCR primer design.");
+
+  const {
+    primerMin, primerMax, ampMin, ampMax, targetTm, nPairs
+  } = opts;
+
+  // Focus on last ~900 bp (often better for RT-qPCR, closer to 3' end),
+  // but ensure we have enough length.
+  const tailLen = Math.min(900, seq.length);
+  const tailStart = seq.length - tailLen;
+  const region = seq.slice(tailStart);
+
+  const candidatesF = [];
+  const candidatesR = [];
+
+  // Build primer candidates across region.
+  // Forward primers start in first ~60% of region
+  // Reverse primers start in last ~60% of region (primer itself taken as reverse-complement of binding site)
+  const fMaxStart = Math.floor(region.length * 0.60);
+  const rMinStart = Math.floor(region.length * 0.40);
+
+  for (let start = 0; start < fMaxStart; start++){
+    for (let len = primerMin; len <= primerMax; len++){
+      if (start + len > region.length) continue;
+      const p = region.slice(start, start + len);
+      if (hasAmbiguous(p) || hasBadHomopolymer(p)) continue;
+      const gc = gcContent(p);
+      if (!within(gc, 40, 60)) continue;
+      const tm = tmApprox(p);
+      if (!within(tm, targetTm - 6, targetTm + 6)) continue;
+
+      const clamp = threePrimeClampScore(p);
+      const sd = selfDimerPenalty(p);
+      candidatesF.push({ start, len, seq: p, tm, gc, clamp, sd });
+    }
+  }
+
+  for (let start = rMinStart; start < region.length; start++){
+    for (let len = primerMin; len <= primerMax; len++){
+      if (start + len > region.length) continue;
+      const binding = region.slice(start, start + len); // binding site on + strand
+      if (hasAmbiguous(binding) || hasBadHomopolymer(binding)) continue;
+      const p = revComp(binding); // actual primer 5'->3'
+      const gc = gcContent(p);
+      if (!within(gc, 40, 60)) continue;
+      const tm = tmApprox(p);
+      if (!within(tm, targetTm - 6, targetTm + 6)) continue;
+
+      const clamp = threePrimeClampScore(p);
+      const sd = selfDimerPenalty(p);
+      candidatesR.push({ start, len, seq: p, tm, gc, clamp, sd });
+    }
+  }
+
+  if (candidatesF.length < 10 || candidatesR.length < 10){
+    throw new Error("Not enough candidate primers found with the current constraints. Try widening GC/Tm/length ranges or amp size.");
+  }
+
+  // Pair them to hit amplicon size constraints.
+  // Amplicon size computed on region coords:
+  // forward binds at [f.start..f.start+f.len-1]
+  // reverse binds to + strand at [r.start..r.start+r.len-1]
+  // product spans from f.start to r.start+r.len, size = (r.start + r.len) - f.start
+  const pairs = [];
+
+  for (const f of candidatesF){
+    for (const r of candidatesR){
+      const amp = (r.start + r.len) - f.start;
+      if (!within(amp, ampMin, ampMax)) continue;
+      if (r.start <= f.start + f.len + 10) continue; // ensure separation, avoid overlap
+      const tmDiff = Math.abs(f.tm - r.tm);
+
+      // Penalize primer-dimer-ish complementarity
+      const pd = pairDimerPenalty(f.seq, r.seq);
+
+      // Scoring
+      let score = 0;
+      score += 50 - Math.abs(f.tm - targetTm) * 3;
+      score += 50 - Math.abs(r.tm - targetTm) * 3;
+      score += 10 - tmDiff * 2;
+      score += 6 - Math.abs(f.gc - 50) * 0.2;
+      score += 6 - Math.abs(r.gc - 50) * 0.2;
+      score += (f.clamp + r.clamp) * 2;
+      score -= (f.sd + r.sd) * 3;
+      score -= pd * 4;
+
+      // Prefer amplicon around ~120 bp
+      score += 10 - Math.abs(amp - 120) * 0.08;
+
+      const notes = [];
+      if (tmDiff > 2.5) notes.push("Tm mismatch");
+      if (pd > 1) notes.push("possible dimer risk");
+      if (f.sd > 2 || r.sd > 2) notes.push("self-complementarity");
+      if (f.clamp < 2) notes.push("weak 3' clamp (F)");
+      if (r.clamp < 2) notes.push("weak 3' clamp (R)");
+
+      pairs.push({
+        fwd: f.seq,
+        rev: r.seq,
+        amp,
+        fTm: f.tm, rTm: r.tm,
+        fGC: f.gc, rGC: r.gc,
+        score,
+        notes: notes.join("; ") || "OK"
+      });
+    }
+  }
+
+  pairs.sort((a,b) => b.score - a.score);
+  return pairs.slice(0, nPairs);
+}
+
+/* ---------- UI ---------- */
+const orgSel = document.getElementById("org");
+const customOrg = document.getElementById("customOrg");
+orgSel.addEventListener("change", () => {
+  customOrg.style.display = (orgSel.value === "custom") ? "block" : "none";
+});
+
+const statusEl = document.getElementById("status");
+const errEl = document.getElementById("err");
+const summaryCard = document.getElementById("summaryCard");
+const summaryEl = document.getElementById("summary");
+const linksEl = document.getElementById("links");
+const resultsCard = document.getElementById("resultsCard");
+const tbody = document.getElementById("tbody");
+
+function setStatus(msg){ statusEl.textContent = msg; }
+function setError(msg){ errEl.textContent = msg; }
+
+function primerBlastLink(fwd, rev, organismLabel){
+  // Pre-fill NCBI Primer-BLAST with the primer sequences.
+  // (NCBI uses multiple params; this minimal link often works; users can paste if needed.)
+  const base = "https://www.ncbi.nlm.nih.gov/tools/primer-blast/index.cgi";
+  const q = new URLSearchParams();
+  q.set("PRIMER5", fwd);
+  q.set("PRIMER3", rev);
+  q.set("LINK_LOC", "blasthome");
+  // organism field varies; we’ll just set a note in UI; user can choose organism there.
+  return `${base}?${q.toString()}`;
+}
+
+document.getElementById("go").addEventListener("click", async () => {
+  setError("");
+  setStatus("");
+  summaryCard.style.display = "none";
+  resultsCard.style.display = "none";
+  tbody.innerHTML = "";
+  linksEl.innerHTML = "";
+
+  const gene = cleanGene(document.getElementById("gene").value);
+  if (!gene) { setError("Please enter a gene symbol."); return; }
+
+  const org = (orgSel.value === "custom")
+    ? (customOrg.value || "").trim()
+    : orgSel.value;
+
+  if (!org) { setError("Please select or type an Ensembl organism/species name."); return; }
+
+  const opts = {
+    nPairs: Math.max(1, Math.min(25, Number(document.getElementById("nPairs").value || 5))),
+    targetTm: Number(document.getElementById("targetTm").value || 60),
+    ampMin: Number(document.getElementById("ampMin").value || 80),
+    ampMax: Number(document.getElementById("ampMax").value || 160),
+    primerMin: Number(document.getElementById("primerMin").value || 18),
+    primerMax: Number(document.getElementById("primerMax").value || 24),
+  };
+
+  try {
+    setStatus("Searching Ensembl for gene symbol...");
+    // Find Ensembl IDs from gene symbol
+    const xrefs = await ensemblGetJson(`/xrefs/symbol/${encodeURIComponent(org)}/${encodeURIComponent(gene)}?content-type=application/json`);
+
+    if (!Array.isArray(xrefs) || xrefs.length === 0){
+      throw new Error(`No Ensembl xrefs found for gene symbol "${gene}" in species "${org}". Try a different symbol or species name.`);
+    }
+
+    // Prefer gene-type xref if available
+    const geneX = xrefs.find(x => (x.type || "").toLowerCase().includes("gene")) || xrefs[0];
+    const ensemblId = geneX.id;
+
+    setStatus(`Found Ensembl ID: ${ensemblId}. Fetching transcripts...`);
+    const lookup = await ensemblGetJson(`/lookup/id/${encodeURIComponent(ensemblId)}?expand=1;content-type=application/json`);
+
+    const tx = pickBestTranscript(lookup);
+    if (!tx?.id) throw new Error("Could not pick a transcript from Ensembl lookup result.");
+
+    setStatus(`Using transcript ${tx.id}. Downloading cDNA sequence...`);
+    const cdna = await ensemblGetText(`/sequence/id/${encodeURIComponent(tx.id)}?type=cdna`);
+
+    setStatus("Designing candidate primer pairs...");
+    const pairs = designPrimers(cdna, opts);
+
+    // Summary
+    const geneName = lookup?.display_name || gene;
+    const species = org;
+    const txName = tx.display_name || tx.id;
+    const len = cdna.replace(/[^A-Za-z]/g,"").length;
+
+    summaryEl.innerHTML = `
+      <div>
+        <span class="pill"><b>Gene</b> ${geneName}</span>
+        <span class="pill"><b>Species</b> ${species}</span>
+        <span class="pill"><b>Transcript</b> ${txName}</span>
+        <span class="pill"><b>cDNA length</b> ${len} bp</span>
+      </div>
+      <div class="small muted" style="margin-top:8px;">
+        These primers are designed on <b>cDNA</b> (good for RT-qPCR). Validate specificity and amplicon uniqueness before ordering.
+      </div>
+    `;
+
+    // Helpful links
+    const ensemblGeneUrl = `https://www.ensembl.org/id/${encodeURIComponent(ensemblId)}`;
+    const ensemblTxUrl = `https://www.ensembl.org/id/${encodeURIComponent(tx.id)}`;
+
+    const top = pairs[0];
+    const pb = primerBlastLink(top.fwd, top.rev, species);
+
+    linksEl.innerHTML = `
+      <a href="${ensemblGeneUrl}" target="_blank" rel="noopener">Open gene in Ensembl</a>
+      <a href="${ensemblTxUrl}" target="_blank" rel="noopener">Open transcript in Ensembl</a>
+      <a href="${pb}" target="_blank" rel="noopener">Primer-BLAST (top pair)</a>
+    `;
+
+    // Table
+    pairs.forEach((p, idx) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="mono">${idx+1}</td>
+        <td><code>${p.fwd}</code></td>
+        <td><code>${p.rev}</code></td>
+        <td class="mono">${p.amp} bp</td>
+        <td class="mono">
+          F: ${format1(p.fTm)}°C / ${format1(p.fGC)}%<br/>
+          R: ${format1(p.rTm)}°C / ${format1(p.rGC)}%
+        </td>
+        <td class="small">${p.notes}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    summaryCard.style.display = "block";
+    resultsCard.style.display = "block";
+    setStatus(`Done. Showing top ${pairs.length} primer pairs.`);
+
+  } catch (e){
+    console.error(e);
+    setError(e?.message || String(e));
+    setStatus("");
+  }
+});
+</script>
+<footer style="
+  margin-top: 40px;
+  padding-top: 10px;
+  border-top: 1px solid #ccc;
+  text-align: center;
+  font-size: 0.9rem;
+  color: #555;
+">
+  © <a href="mailto:palpurab@gmail.com"
+       style="color:#333; font-weight:600; text-decoration:none;">
+       Purab Pal
+     </a>, 2026<br/>
+  <span class="small">
+    For comments or concerns, click on the name above.
+  </span>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>qPCR ΔΔCt (Fold Change / log2FC) Calculator + Plot + t-tests</title>
+
+  <!-- Chart.js + error bars + datalabels -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-error-bars@4.3.2/build/index.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+
+  <!-- jStat for t distribution CDF (p-values) -->
+  <script src="https://cdn.jsdelivr.net/npm/jstat@1.9.6/dist/jstat.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #f7f7fb;
+      --card: #ffffff;
+      --ink: #111827;
+      --muted: #6b7280;
+      --line: #e5e7eb;
+      --accent: #7c3aed;
+    }
+    body{
+      margin:0;
+      padding:18px;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+    }
+    h1{ font-size: 24px; margin:0 0 10px; }
+    .row{ display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; }
+    .card{
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+      box-shadow: 0 1px 8px rgba(0,0,0,0.04);
+    }
+    .controls{ width: 100%; }
+    label{ font-size:12px; color: var(--muted); display:block; margin-bottom:4px; }
+    input, select, button{
+      font: inherit;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 8px 10px;
+      background: #fff;
+    }
+    input[type="number"]{ width: 110px; }
+    .btn{
+      cursor:pointer;
+      border-color: transparent;
+      background: var(--accent);
+      color: white;
+      font-weight: 700;
+      padding: 9px 14px;
+    }
+    .btn.secondary{ background:#111827; }
+    .btn.light{
+      background:#ffffff;
+      color:#111827;
+      border:1px solid var(--line);
+      font-weight:700;
+    }
+    .hint{ font-size:12px; color: var(--muted); margin-top:6px; }
+    .gridwrap{ overflow:auto; }
+    table{
+      border-collapse: collapse;
+      width: 100%;
+      min-width: 860px;
+      font-size: 13px;
+    }
+    th, td{
+      border: 1px solid var(--line);
+      padding: 8px;
+      text-align: center;
+      vertical-align: middle;
+    }
+    th{
+      background: #fafafa;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    td.groupCell{
+      text-align:left;
+      min-width: 150px;
+      white-space: nowrap;
+    }
+    .groupNameInput{ width: 140px; }
+    .ctInput{ width: 92px; }
+    .small{ font-size: 12px; color: var(--muted); }
+    .flexBetween{
+      display:flex;
+      justify-content: space-between;
+      align-items:center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .warn{
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      color: #9a3412;
+      padding: 10px;
+      border-radius: 10px;
+      font-size: 12px;
+      margin-top: 10px;
+      display:none;
+    }
+    /* stacked layout now */
+    .stack{ display:flex; flex-direction:column; gap:12px; margin-top:12px; }
+
+    /* square-ish chart */
+    .chartBox{
+      width: min(720px, 100%);
+      aspect-ratio: 1 / 1;       /* make it square */
+      margin-top: 10px;
+    }
+    canvas{ width:100% !important; height:100% !important; }
+
+    footer{
+      margin-top: 18px;
+      padding: 14px 10px 4px;
+      color: var(--muted);
+      font-size: 12px;
+      text-align: center;
+    }
+    footer a{
+      color: inherit;
+      text-decoration: underline;
+      font-weight: 700;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>RT-qPCR Result Generator</h1>
+<p>
+This is a tool to quickly visualize your qPCR data. Select the number of groups, name them, choose which group is the control, set the number of replicates, and enter your raw Ct values. The program will generate bar graphs showing the mean and standard deviation for each group.</p>
+<p>
+Please note: the default statistical comparison shown here is a two-sided t-test between each test group and the selected control group. This is provided as a simple, rudimentary default. For publication or presentation-quality scientific reporting, you should use statistical tests appropriate to your experimental design and assumptions.
+</p>
+  <div class="card controls">
+    <div class="row">
+      <div>
+        <label>Number of groups</label>
+        <input id="numGroups" type="number" min="2" step="1" value="6">
+      </div>
+
+      <div>
+        <label>Replicates per group</label>
+        <input id="numReps" type="number" min="2" step="1" value="3">
+      </div>
+
+      <div>
+        <label>Output metric</label>
+        <select id="metric">
+          <option value="fc">Fold change (2^-ΔΔCt)</option>
+          <option value="log2">Log2 fold change (-ΔΔCt)</option>
+        </select>
+      </div>
+
+      <div>
+        <label>t-test type</label>
+        <select id="ttype">
+          <option value="welch">Welch (unequal variance)</option>
+          <option value="student">Student (equal variance)</option>
+        </select>
+      </div>
+
+      <div>
+        <label>Control group</label>
+        <select id="controlGroup"></select>
+      </div>
+
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <button class="btn" id="build">Build / Rebuild grid</button>
+        <button class="btn secondary" id="calc">Calculate + Plot</button>
+        <button class="btn light" id="dlGraph" title="Download chart as PNG" disabled>Download graph (PNG)</button>
+        <button class="btn light" id="dlTable" title="Download summary table as CSV" disabled>Download table (CSV)</button>
+      </div>
+    </div>
+
+    <div class="hint">
+      Enter Ct values for <b>Housekeeping</b> and <b>Target</b> for each replicate.
+      ΔCt = Ct(target) − Ct(housekeeping); mean control ΔCt → ΔΔCt; FC = 2^(−ΔΔCt); log2FC = −ΔΔCt.
+      Bar plot shows group mean ± SD of the selected metric. Each non-control group gets a two-sided t-test vs control (replicate-level values).
+    </div>
+
+    <div id="warn" class="warn"></div>
+  </div>
+
+  <!-- STACKED: table first, then plot, then summary -->
+  <div class="stack">
+    <div class="card">
+      <div class="flexBetween">
+        <div>
+          <b>Input Ct grid</b>
+          <div class="small">Tip: you can paste numbers cell-by-cell; blank / incomplete replicate pairs are ignored.</div>
+        </div>
+        <div class="small mono" id="controlMeanLine"></div>
+      </div>
+      <div class="gridwrap" style="margin-top:10px;">
+        <table id="grid"></table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="flexBetween">
+        <b>Bar plot (mean ± SD) + p-values vs control</b>
+        <div class="small" id="plotNote"></div>
+      </div>
+      <div class="chartBox">
+        <canvas id="chart"></canvas>
+      </div>
+      <div class="small" style="margin-top:8px;">
+        Note: p-values are two-sided t-tests vs control on replicate-level values of the selected metric.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="flexBetween">
+        <b>Summary table</b>
+        <div class="small">Download as CSV with the button above.</div>
+      </div>
+      <div class="gridwrap" style="margin-top:10px;">
+        <table id="summary"></table>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <a href="mailto:palpurab@gmail.com?subject=qPCR%20Tool%20-%20comments%20or%20concerns">© Purab Pal, 2026</a><br/>
+    For comments or concerns, click on the name above.
+  </footer>
+
+<script>
+  // -----------------------------
+  // Helpers
+  // -----------------------------
+  const $ = (id) => document.getElementById(id);
+
+  function isFiniteNumber(x){
+    return typeof x === "number" && Number.isFinite(x);
+  }
+
+  function mean(arr){
+    const xs = arr.filter(isFiniteNumber);
+    if(xs.length === 0) return NaN;
+    return xs.reduce((a,b)=>a+b,0) / xs.length;
+  }
+
+  function sampleVariance(arr){
+    const xs = arr.filter(isFiniteNumber);
+    if(xs.length < 2) return NaN;
+    const m = mean(xs);
+    let s2 = 0;
+    for(const v of xs) s2 += (v - m) * (v - m);
+    return s2 / (xs.length - 1);
+  }
+
+  function sampleSD(arr){
+    const v = sampleVariance(arr);
+    return Number.isFinite(v) ? Math.sqrt(v) : NaN;
+  }
+
+  // Two-sided p-value for t with df using jStat
+  function pValueTwoSidedFromT(t, df){
+    if(!isFiniteNumber(t) || !isFiniteNumber(df) || df <= 0) return NaN;
+    const cdf = jStat.studentt.cdf(Math.abs(t), df);
+    let p = 2 * (1 - cdf);
+    if(p < 0) p = 0;
+    if(p > 1) p = 1;
+    return p;
+  }
+
+  function ttestTwoSided(a, b, type="welch"){
+    const x = a.filter(isFiniteNumber);
+    const y = b.filter(isFiniteNumber);
+    if(x.length < 2 || y.length < 2) return {t: NaN, df: NaN, p: NaN};
+
+    const mx = mean(x), my = mean(y);
+    const vx = sampleVariance(x), vy = sampleVariance(y);
+    if(!isFiniteNumber(vx) || !isFiniteNumber(vy) || vx < 0 || vy < 0) return {t: NaN, df: NaN, p: NaN};
+
+    let t, df;
+
+    if(type === "student"){
+      const nx = x.length, ny = y.length;
+      const sp2 = (((nx-1)*vx) + ((ny-1)*vy)) / (nx + ny - 2);
+      const se = Math.sqrt(sp2 * (1/nx + 1/ny));
+      t = (mx - my) / se;
+      df = nx + ny - 2;
+    } else {
+      const nx = x.length, ny = y.length;
+      const se2 = (vx/nx) + (vy/ny);
+      const se = Math.sqrt(se2);
+      t = (mx - my) / se;
+
+      const num = se2 * se2;
+      const den = ((vx*vx)/(nx*nx*(nx-1))) + ((vy*vy)/(ny*ny*(ny-1)));
+      df = num / den;
+    }
+
+    const p = pValueTwoSidedFromT(t, df);
+    return {t, df, p};
+  }
+
+  function formatNumber(x, digits=6){
+    if(!isFiniteNumber(x)) return "";
+    return Number(x).toFixed(digits).replace(/\.?0+$/,"");
+  }
+
+  function formatP(p){
+    if(!isFiniteNumber(p)) return "";
+    if(p < 0.0001) return "p<1e-4";
+    if(p < 0.001) return "p<0.001";
+    return "p=" + p.toFixed(3);
+  }
+
+  // -----------------------------
+  // Grid builder
+  // -----------------------------
+  function buildGrid(){
+    const G = Math.max(2, parseInt($("numGroups").value || "6", 10));
+    const R = Math.max(2, parseInt($("numReps").value || "3", 10));
+
+    // Control dropdown
+    const sel = $("controlGroup");
+    sel.innerHTML = "";
+    for(let g=0; g<G; g++){
+      const opt = document.createElement("option");
+      opt.value = String(g);
+      opt.textContent = `Group ${g+1}`;
+      sel.appendChild(opt);
+    }
+    sel.value = "0";
+
+    // Table header
+    const table = $("grid");
+    table.innerHTML = "";
+    const thead = document.createElement("thead");
+    const hr = document.createElement("tr");
+
+    const th0 = document.createElement("th");
+    th0.textContent = "Group";
+    hr.appendChild(th0);
+
+    for(let r=0; r<R; r++){
+      const thHK = document.createElement("th");
+      thHK.innerHTML = `Rep ${r+1}<div class="small">Housekeeping Ct</div>`;
+      hr.appendChild(thHK);
+
+      const thTG = document.createElement("th");
+      thTG.innerHTML = `Rep ${r+1}<div class="small">Target Ct</div>`;
+      hr.appendChild(thTG);
+    }
+
+    thead.appendChild(hr);
+    table.appendChild(thead);
+
+    // Body rows
+    const tbody = document.createElement("tbody");
+
+    for(let g=0; g<G; g++){
+      const tr = document.createElement("tr");
+
+      const tdGroup = document.createElement("td");
+      tdGroup.className = "groupCell";
+      tdGroup.innerHTML = `
+        <div style="display:flex; gap:8px; align-items:center;">
+          <input class="groupNameInput" id="groupName_${g}" value="Group ${g+1}">
+          <span class="small">(g${g+1})</span>
+        </div>
+      `;
+      tr.appendChild(tdGroup);
+
+      for(let r=0; r<R; r++){
+        const tdHK = document.createElement("td");
+        tdHK.innerHTML = `<input class="ctInput" type="number" step="0.0001" id="hk_${g}_${r}" placeholder="Ct">`;
+        tr.appendChild(tdHK);
+
+        const tdT = document.createElement("td");
+        tdT.innerHTML = `<input class="ctInput" type="number" step="0.0001" id="tg_${g}_${r}" placeholder="Ct">`;
+        tr.appendChild(tdT);
+      }
+
+      tbody.appendChild(tr);
+    }
+
+    table.appendChild(tbody);
+
+    $("warn").style.display = "none";
+    $("warn").textContent = "";
+    $("controlMeanLine").textContent = "";
+
+    // disable downloads until compute
+    $("dlGraph").disabled = true;
+    $("dlTable").disabled = true;
+  }
+
+  // -----------------------------
+  // Core calculations
+  // -----------------------------
+  function computeAll(){
+    const G = Math.max(2, parseInt($("numGroups").value || "6", 10));
+    const R = Math.max(2, parseInt($("numReps").value || "3", 10));
+    const controlIdx = parseInt($("controlGroup").value, 10);
+    const metric = $("metric").value; // "fc" or "log2"
+    const ttype = $("ttype").value;   // "welch" or "student"
+
+    // replicate-level ΔCt
+    const deltaCtByGroup = Array.from({length:G}, ()=>[]);
+
+    for(let g=0; g<G; g++){
+      for(let r=0; r<R; r++){
+        const hk = parseFloat($(`hk_${g}_${r}`).value);
+        const tg = parseFloat($(`tg_${g}_${r}`).value);
+        const hkOK = Number.isFinite(hk);
+        const tgOK = Number.isFinite(tg);
+
+        if(hkOK && tgOK){
+          deltaCtByGroup[g].push(tg - hk);
+        }
+      }
+    }
+
+    const controlDeltaCts = deltaCtByGroup[controlIdx].filter(isFiniteNumber);
+    const controlMeanDeltaCt = mean(controlDeltaCts);
+
+    const warn = $("warn");
+    warn.style.display = "none";
+    warn.textContent = "";
+
+    if(!isFiniteNumber(controlMeanDeltaCt)){
+      warn.style.display = "block";
+      warn.textContent = "Control group has insufficient complete replicates (needs at least 1 replicate with both Ct values). Fill control Ct values and try again.";
+      $("controlMeanLine").textContent = "";
+      return null;
+    }
+
+    $("controlMeanLine").textContent =
+      `Mean control ΔCt (Target − HK) = ${formatNumber(controlMeanDeltaCt, 6)} (n=${controlDeltaCts.length})`;
+
+    // replicate-level outputs
+    const outputByGroup = Array.from({length:G}, ()=>[]);
+    const ddctByGroup   = Array.from({length:G}, ()=>[]);
+
+    for(let g=0; g<G; g++){
+      const dcts = deltaCtByGroup[g].filter(isFiniteNumber);
+      for(const dct of dcts){
+        const ddct = dct - controlMeanDeltaCt;
+        ddctByGroup[g].push(ddct);
+
+        const log2fc = -ddct;
+        const fc = Math.pow(2, -ddct);
+        outputByGroup[g].push(metric === "fc" ? fc : log2fc);
+      }
+    }
+
+    const groupNames = Array.from({length:G}, (_,g)=> ($(`groupName_${g}`)?.value || `Group ${g+1}`));
+    const means = outputByGroup.map(arr => mean(arr));
+    const sds   = outputByGroup.map(arr => sampleSD(arr));
+    const ns    = outputByGroup.map(arr => arr.filter(isFiniteNumber).length);
+
+    // t-tests vs control
+    const controlVals = outputByGroup[controlIdx].filter(isFiniteNumber);
+    const pvals = Array.from({length:G}, ()=>NaN);
+    const tstats = Array.from({length:G}, ()=>NaN);
+    const dfs = Array.from({length:G}, ()=>NaN);
+
+    for(let g=0; g<G; g++){
+      if(g === controlIdx) continue;
+      const vals = outputByGroup[g].filter(isFiniteNumber);
+      const res = ttestTwoSided(vals, controlVals, ttype);
+      pvals[g] = res.p;
+      tstats[g] = res.t;
+      dfs[g] = res.df;
+    }
+
+    return {
+      G, R,
+      controlIdx,
+      metric,
+      ttype,
+      groupNames,
+      controlMeanDeltaCt,
+      deltaCtByGroup,
+      ddctByGroup,
+      outputByGroup,
+      means, sds, ns,
+      pvals, tstats, dfs
+    };
+  }
+
+  // -----------------------------
+  // Plotting
+  // -----------------------------
+  let chartInstance = null;
+
+  function renderChart(result){
+    const {groupNames, means, sds, ns, pvals, controlIdx, metric} = result;
+
+    const label = metric === "fc" ? "Fold Change (2^-ΔΔCt)" : "Log2 Fold Change (-ΔΔCt)";
+    $("plotNote").textContent = metric === "fc"
+      ? "Bars are linear fold change."
+      : "Bars are log2 fold change (0 = no change).";
+
+    const dataPts = means.map((m, i) => {
+      const sd = sds[i];
+      if(!isFiniteNumber(m) || !isFiniteNumber(sd)) return {y: m, yMin: m, yMax: m};
+      return {y: m, yMin: m - sd, yMax: m + sd};
+    });
+
+    const pLabels = groupNames.map((_, i) => {
+      if(i === controlIdx) return "control";
+      return formatP(pvals[i]);
+    });
+
+    Chart.register(ChartDataLabels);
+
+    const ctx = $("chart").getContext("2d");
+    if(chartInstance) chartInstance.destroy();
+
+    chartInstance = new Chart(ctx, {
+      type: "barWithErrorBars",
+      data: {
+        labels: groupNames.map((n,i)=> i===controlIdx ? `${n} (control)` : n),
+        datasets: [{
+          label,
+          data: dataPts
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false, // we control size via aspect-ratio
+        layout: { padding: { top: 22, right: 12, left: 8, bottom: 8 } },
+        plugins: {
+          legend: { display: true },
+          tooltip: {
+            callbacks: {
+              afterLabel: (ctx) => {
+                const i = ctx.dataIndex;
+                const m = means[i], sd = sds[i], n = ns[i];
+                const p = pvals[i];
+                const lines = [];
+                lines.push(`n=${n}`);
+                if(isFiniteNumber(m) && isFiniteNumber(sd)) lines.push(`mean±SD: ${formatNumber(m,5)} ± ${formatNumber(sd,5)}`);
+                if(i !== controlIdx && isFiniteNumber(p)) lines.push(`${formatP(p)}`);
+                return lines;
+              }
+            }
+          },
+          datalabels: {
+            anchor: "end",
+            align: "end",
+            clamp: true,
+            formatter: (value, ctx) => pLabels[ctx.dataIndex] || "",
+            font: { weight: "700" }
+          }
+        },
+        scales: {
+          y: { title: { display: true, text: label } }
+        }
+      }
+    });
+  }
+
+  // -----------------------------
+  // Summary table + CSV
+  // -----------------------------
+  function renderSummary(result){
+    const {
+      groupNames, means, sds, ns, pvals, tstats, dfs,
+      controlIdx, metric
+    } = result;
+
+    const table = $("summary");
+    table.innerHTML = "";
+
+    const thead = document.createElement("thead");
+    const trh = document.createElement("tr");
+    const headers = [
+      "Group",
+      "n (complete reps)",
+      metric === "fc" ? "Mean FC" : "Mean log2FC",
+      "SD",
+      "t vs control",
+      "df",
+      "p-value (two-sided)"
+    ];
+    for(const h of headers){
+      const th = document.createElement("th");
+      th.textContent = h;
+      trh.appendChild(th);
+    }
+    thead.appendChild(trh);
+    table.appendChild(thead);
+
+    const tbody = document.createElement("tbody");
+    for(let i=0; i<groupNames.length; i++){
+      const tr = document.createElement("tr");
+
+      const gname = (i === controlIdx) ? `${groupNames[i]} (control)` : groupNames[i];
+      const cells = [
+        gname,
+        ns[i],
+        formatNumber(means[i], 6),
+        formatNumber(sds[i], 6),
+        (i === controlIdx) ? "" : formatNumber(tstats[i], 6),
+        (i === controlIdx) ? "" : formatNumber(dfs[i], 3),
+        (i === controlIdx) ? "" : (isFiniteNumber(pvals[i]) ? pvals[i].toExponential(3) : "")
+      ];
+
+      for(const c of cells){
+        const td = document.createElement("td");
+        td.textContent = String(c);
+        tr.appendChild(td);
+      }
+      tbody.appendChild(tr);
+    }
+    table.appendChild(tbody);
+
+    // enable downloads now
+    $("dlGraph").disabled = false;
+    $("dlTable").disabled = false;
+  }
+
+  function summaryToCSV(){
+    const table = $("summary");
+    const rows = Array.from(table.querySelectorAll("tr"));
+    const csv = rows.map(row => {
+      const cells = Array.from(row.querySelectorAll("th,td")).map(cell => {
+        const text = cell.textContent ?? "";
+        // escape quotes
+        const t = text.replace(/"/g, '""');
+        return `"${t}"`;
+      });
+      return cells.join(",");
+    }).join("\n");
+    return csv;
+  }
+
+  function downloadBlob(filename, content, mime){
+    const blob = new Blob([content], {type: mime});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  // -----------------------------
+  // Wire up
+  // -----------------------------
+  function buildGridAndReset(){
+    buildGrid();
+    // also clear summary/plot
+    $("summary").innerHTML = "";
+    if(chartInstance){ chartInstance.destroy(); chartInstance = null; }
+  }
+
+  $("build").addEventListener("click", buildGridAndReset);
+
+  $("calc").addEventListener("click", () => {
+    const res = computeAll();
+    if(!res) return;
+
+    // warnings about t-test replicates
+    const warn = $("warn");
+    const cN = res.ns[res.controlIdx];
+    let msgs = [];
+    if(cN < 2) msgs.push("Control group has <2 complete replicates; t-tests require at least 2 complete replicates in each group.");
+    for(let g=0; g<res.G; g++){
+      if(g === res.controlIdx) continue;
+      if(res.ns[g] < 2) msgs.push(`Group "${res.groupNames[g]}" has <2 complete replicates; its t-test may be blank.`);
+    }
+    if(msgs.length){
+      warn.style.display = "block";
+      warn.textContent = msgs.join(" ");
+    } else {
+      warn.style.display = "none";
+      warn.textContent = "";
+    }
+
+    renderChart(res);
+    renderSummary(res);
+  });
+
+  $("dlGraph").addEventListener("click", () => {
+    if(!chartInstance) return;
+    const canvas = $("chart");
+    const url = canvas.toDataURL("image/png");
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "qpcr_ddct_barplot.png";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  });
+
+  $("dlTable").addEventListener("click", () => {
+    const csv = summaryToCSV();
+    downloadBlob("qpcr_ddct_summary.csv", csv, "text/csv;charset=utf-8");
+  });
+
+  // Build initial grid on load
+  buildGridAndReset();
+</script>
+
+</body>
+</html>

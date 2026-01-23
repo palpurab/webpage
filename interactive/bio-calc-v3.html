@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Molarity • Formality • Normality Calculator</title>
+  <style>
+    :root{
+      --bg:#f6f1ff;
+      --card:#ffffff;
+      --ink:#1b1b1b;
+      --muted:#5a5a6a;
+      --line:#d8c9ff;
+      --accent:#6b4fd3;
+      --warn:#b23a2f;
+      --good:#1c7c54;
+      --shadow: 0 8px 24px rgba(20,10,40,.10);
+      --radius: 14px;
+    }
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      background: radial-gradient(1200px 600px at 10% 0%, #efe7ff 0%, var(--bg) 55%, #f9f6ff 100%);
+      color:var(--ink);
+      line-height:1.25;
+    }
+    header{
+      padding: 22px 14px 10px;
+      max-width: 980px;
+      margin: 0 auto;
+    }
+    h1{
+      margin: 0 0 6px 0;
+      font-size: 1.45rem;
+      letter-spacing: .2px;
+    }
+    .sub{
+      margin:0;
+      color:var(--muted);
+      font-size:.98rem;
+    }
+    main{
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 14px;
+      display:grid;
+      grid-template-columns: 1.15fr .85fr;
+      gap: 14px;
+    }
+    @media (max-width: 880px){
+      main{ grid-template-columns: 1fr; }
+    }
+    .card{
+      background: var(--card);
+      border:1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 14px;
+    }
+    .grid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    @media (max-width: 640px){
+      .grid{ grid-template-columns: 1fr; }
+    }
+    label{
+      display:block;
+      font-weight: 650;
+      font-size:.92rem;
+      margin-bottom:6px;
+    }
+    .hint{
+      margin-top:6px;
+      font-size:.84rem;
+      color:var(--muted);
+    }
+    input, select, button{ font: inherit; }
+    input, select{
+      width:100%;
+      padding: 10px 10px;
+      border-radius: 10px;
+      border:1px solid #cfc2ff;
+      background:#fff;
+      outline:none;
+    }
+    input:focus, select:focus{
+      border-color: var(--accent);
+      box-shadow: 0 0 0 4px rgba(107,79,211,.12);
+    }
+    input[disabled], select[disabled]{
+      opacity:.65;
+      cursor:not-allowed;
+    }
+    .row{
+      display:flex;
+      gap:10px;
+      align-items:center;
+    }
+    .row > *{ flex:1; }
+    .row .tight{ flex:.75; }
+
+    .seg{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      margin-top: 6px;
+    }
+    .seg button{
+      border:1px solid #cfc2ff;
+      background:#fbf9ff;
+      color:#2b2b35;
+      border-radius: 999px;
+      padding: 8px 10px;
+      cursor:pointer;
+      font-weight: 650;
+      font-size: .9rem;
+    }
+    .seg button.active{
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+    .note{
+      background: #fbf8ff;
+      border:1px dashed #cfc2ff;
+      border-radius: 12px;
+      padding: 10px 10px;
+      color: #2b2b35;
+      font-size:.92rem;
+    }
+    .out{
+      padding: 12px;
+      border-radius: 12px;
+      background: #faf7ff;
+      border: 1px solid #d8c9ff;
+    }
+    .big{
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing:.2px;
+      margin: 2px 0 10px 0;
+    }
+    .kv{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px 12px;
+      align-items: baseline;
+    }
+    .k{ color: var(--muted); font-size: .92rem; }
+    .v{
+      font-weight: 750;
+      text-align:right;
+      font-variant-numeric: tabular-nums;
+    }
+    .divider{
+      height:1px;
+      background:#e6dcff;
+      margin: 12px 0;
+    }
+    .actions{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-top:10px;
+    }
+    .actions button{
+      flex:1;
+      min-width: 150px;
+      cursor:pointer;
+      border-radius: 12px;
+      border: 1px solid #cfc2ff;
+      background:#fff;
+      padding: 10px 12px;
+      font-weight: 750;
+    }
+    .actions button.primary{
+      background: var(--accent);
+      border-color: var(--accent);
+      color:#fff;
+    }
+    .pill{
+      display:inline-block;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: #efe7ff;
+      border: 1px solid #d8c9ff;
+      color:#2b2b35;
+      font-weight: 700;
+      font-size: .85rem;
+      margin-left:6px;
+    }
+    .warn{ color: var(--warn); font-weight: 750; margin-top: 10px; }
+    .ok{ color: var(--good); font-weight: 750; margin-top: 10px; }
+    footer{
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 0 14px 20px;
+      color: var(--muted);
+      font-size: .86rem;
+    }
+    code{
+      background:#f0eaff;
+      padding: 1px 6px;
+      border-radius: 8px;
+      border: 1px solid #ddcfff;
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>Molarity • Formality • Normality calculator</h1>
+    <p class="sub">
+      Choose whether you want to compute <b>mass</b> (given final volume) or compute <b>final volume</b> (given mass).
+      Toggle concentration scale (µ, n, f, etc.) as needed.
+    </p>
+  </header>
+
+  <main>
+    <!-- INPUTS -->
+    <section class="card">
+      <div class="grid">
+        <div>
+          <label for="solveFor">Solve for</label>
+          <select id="solveFor">
+            <option value="mass" selected>Mass to weigh (given final volume)</option>
+            <option value="volume">Final volume achievable (given mass)</option>
+          </select>
+          <div class="hint">Switch between “weighing recipe” and “how much volume can I make from this mass?”</div>
+        </div>
+
+        <div>
+          <label for="fw">Formula weight (g/mol)</label>
+          <input id="fw" type="number" min="0" step="any" placeholder="e.g., 180.16" value="180.16"/>
+          <div class="hint">Use the molecular/formula weight of the solute.</div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="grid">
+        <div>
+          <label>Final volume (when solving for mass)</label>
+          <div class="row">
+            <input id="vol" type="number" min="0" step="any" placeholder="e.g., 100" value="100"/>
+            <select id="volUnit" class="tight" aria-label="Volume unit">
+              <option value="L">L</option>
+              <option value="mL" selected>mL</option>
+              <option value="uL">µL</option>
+            </select>
+          </div>
+          <div class="hint">This is the <b>final</b> volume after dissolving and bringing to volume.</div>
+        </div>
+
+        <div>
+          <label>Mass available (when solving for volume)</label>
+          <div class="row">
+            <input id="massIn" type="number" min="0" step="any" placeholder="e.g., 0.500" value="0.500"/>
+            <select id="massUnit" class="tight" aria-label="Mass unit">
+              <option value="g" selected>g</option>
+              <option value="mg">mg</option>
+              <option value="ug">µg</option>
+            </select>
+          </div>
+          <div class="hint">Enter the solute mass you have already weighed (or plan to weigh).</div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="grid">
+        <div>
+          <label for="mode">Concentration type</label>
+          <select id="mode">
+            <option value="M" selected>Molarity (M)</option>
+            <option value="F">Formality (F)</option>
+            <option value="N">Normality (N)</option>
+          </select>
+          <div class="hint">
+            <b>M</b> = mol/L. <b>F</b> = formula units/L (same weighing math as M). <b>N</b> = equivalents/L.
+          </div>
+        </div>
+
+        <div>
+          <label>Target concentration</label>
+          <div class="row">
+            <input id="conc" type="number" min="0" step="any" placeholder="e.g., 10" value="10"/>
+            <span class="tight" style="display:flex;align-items:center;justify-content:center;font-weight:800;">×</span>
+            <select id="prefix" class="tight" aria-label="Concentration prefix">
+              <option value="1">1</option>
+              <option value="1e-3">m</option>
+              <option value="1e-6" selected>µ</option>
+              <option value="1e-9">n</option>
+              <option value="1e-12">p</option>
+              <option value="1e-15">f</option>
+            </select>
+            <select id="unitType" class="tight" aria-label="Concentration unit type">
+              <option value="M" selected>M</option>
+              <option value="F">F</option>
+              <option value="N">N</option>
+            </select>
+          </div>
+          <div class="hint">
+            This means: <code id="concPreview">10 µM</code> (you can switch between µ / n / f etc.).
+          </div>
+        </div>
+      </div>
+
+      <div id="nfactorWrap" style="margin-top:12px; display:none;">
+        <div class="note">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+            <div>
+              <b>Normality needs an n-factor</b> (equivalents per mole). Example: HCl → 1, H<sub>2</sub>SO<sub>4</sub> → 2 (acid-base).
+              For redox/precipitation, n-factor depends on reaction context.
+            </div>
+            <div style="min-width:220px;">
+              <label for="nfactor" style="margin:0 0 6px 0;">n-factor</label>
+              <input id="nfactor" type="number" min="0" step="any" value="1" />
+            </div>
+          </div>
+          <div class="hint" style="margin:8px 0 0 0;">
+            Internally: <code>N = n×M</code>. So <code>M = N / n</code> for weighing/volume.
+          </div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="seg" aria-label="Quick scale toggles">
+        <button data-pref="1e-6" class="active">Micro (µ)</button>
+        <button data-pref="1e-9">Nano (n)</button>
+        <button data-pref="1e-15">Femto (f)</button>
+      </div>
+
+      <div id="status" class="hint" style="margin-top:10px;"></div>
+    </section>
+
+    <!-- OUTPUT -->
+    <aside class="card">
+      <div class="out">
+        <div class="big" id="headline">Weigh: <span id="mainValue">—</span> <span class="pill" id="mainUnitPill">g</span></div>
+
+        <div class="kv">
+          <div class="k">Mass (g)</div><div class="v" id="massG">—</div>
+          <div class="k">Mass (mg)</div><div class="v" id="massMg">—</div>
+          <div class="k">Mass (µg)</div><div class="v" id="massUg">—</div>
+
+          <div class="k">Final volume (L)</div><div class="v" id="volL">—</div>
+          <div class="k">Final volume (mL)</div><div class="v" id="volmL">—</div>
+          <div class="k">Final volume (µL)</div><div class="v" id="voluL">—</div>
+
+          <div class="k">Working molarity for calc (M)</div><div class="v" id="molM">—</div>
+          <div class="k">Label concentration</div><div class="v" id="labelConc">—</div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="k" style="margin-bottom:6px;">Clipboard copy</div>
+        <div class="hint" id="copyHint" style="margin:0;">Copies inputs + calculated mass/volume + working strength.</div>
+
+        <div class="actions">
+          <button class="primary" id="copyBtn">Copy calculation</button>
+          <button id="resetBtn">Reset</button>
+        </div>
+
+        <div id="warn" class="warn" style="display:none;"></div>
+        <div id="ok" class="ok" style="display:none;"></div>
+      </div>
+
+      <div style="margin-top:12px; color:var(--muted); font-size:.88rem;">
+        Notes:
+        <ul style="margin:8px 0 0 18px; padding:0;">
+          <li><b>Formality</b> uses the same weighing math as molarity (formula units per liter).</li>
+          <li><b>Normality</b> depends on reaction context; choose <b>n-factor</b> accordingly.</li>
+          <li>This assumes a solid solute (FW in g/mol). For liquid reagents, you’d need density and purity.</li>
+        </ul>
+      </div>
+    </aside>
+  </main>
+
+  <footer>
+    Tip: for very tiny masses (ng–pg), labs usually prepare a higher-concentration stock and dilute.
+    This page still shows the mathematically correct target mass/volume so you can decide a practical workflow.
+  </footer>
+
+<script>
+  // ---------- Helpers ----------
+  const $ = (id) => document.getElementById(id);
+
+  // Text copied to clipboard (inputs + outputs). Updated on every successful calculation.
+  let lastCopyText = "";
+
+  function fmt(x, sig=6){
+    if (!isFinite(x)) return "—";
+    if (x === 0) return "0";
+    const ax = Math.abs(x);
+    if (ax < 1e-3 || ax >= 1e6) return x.toExponential(3);
+    const p = Math.max(0, sig - Math.floor(Math.log10(ax)) - 1);
+    return x.toFixed(p);
+  }
+
+  function toLiters(v, unit){
+    if (!isFinite(v) || v < 0) return NaN;
+    if (unit === "L") return v;
+    if (unit === "mL") return v / 1000;
+    if (unit === "uL") return v / 1e6;
+    return NaN;
+  }
+
+  function litersTo(vL, unit){
+    if (!isFinite(vL) || vL < 0) return NaN;
+    if (unit === "L") return vL;
+    if (unit === "mL") return vL * 1000;
+    if (unit === "uL") return vL * 1e6;
+    return NaN;
+  }
+
+  function massToGrams(m, unit){
+    if (!isFinite(m) || m < 0) return NaN;
+    if (unit === "g") return m;
+    if (unit === "mg") return m / 1e3;
+    if (unit === "ug") return m / 1e6;
+    return NaN;
+  }
+
+  function pickNiceMass(mass_g){
+    const abs = Math.abs(mass_g);
+    if (!isFinite(abs)) return {value:"—", unit:"g"};
+    if (abs >= 1) return {value: fmt(mass_g, 6), unit:"g"};
+    if (abs >= 1e-3) return {value: fmt(mass_g*1e3, 6), unit:"mg"};
+    if (abs >= 1e-6) return {value: fmt(mass_g*1e6, 6), unit:"µg"};
+    if (abs >= 1e-9) return {value: fmt(mass_g*1e9, 6), unit:"ng"};
+    return {value: fmt(mass_g*1e12, 6), unit:"pg"};
+  }
+
+  function pickNiceVolume(vL){
+    const abs = Math.abs(vL);
+    if (!isFinite(abs)) return {value:"—", unit:"L"};
+    if (abs >= 1) return {value: fmt(vL, 6), unit:"L"};
+    if (abs >= 1e-3) return {value: fmt(vL*1e3, 6), unit:"mL"};
+    if (abs >= 1e-6) return {value: fmt(vL*1e6, 6), unit:"µL"};
+    if (abs >= 1e-9) return {value: fmt(vL*1e9, 6), unit:"nL"};
+    return {value: fmt(vL*1e12, 6), unit:"pL"};
+  }
+
+  function prefixLabel(mult){
+    if (mult === 1) return "";
+    if (mult === 1e-3) return "m";
+    if (mult === 1e-6) return "µ";
+    if (mult === 1e-9) return "n";
+    if (mult === 1e-12) return "p";
+    if (mult === 1e-15) return "f";
+    return "";
+  }
+
+  function updateUnitTypeToMode(){
+    $("unitType").value = $("mode").value;
+  }
+
+  function syncSolveForUI(){
+    const solveFor = $("solveFor").value;
+    const volEnabled = (solveFor === "mass");
+    const massEnabled = (solveFor === "volume");
+
+    $("vol").disabled = !volEnabled;
+    $("volUnit").disabled = !volEnabled;
+
+    $("massIn").disabled = !massEnabled;
+    $("massUnit").disabled = !massEnabled;
+
+    $("headline").textContent = solveFor === "mass" ? "Weigh:" : "Final volume:";
+  }
+
+  // ---------- Core calculation ----------
+  function recalc(){
+    const solveFor = $("solveFor").value; // mass | volume
+
+    const fw = parseFloat($("fw").value);
+
+    const vol = parseFloat($("vol").value);
+    const volUnit = $("volUnit").value;
+
+    const massIn = parseFloat($("massIn").value);
+    const massUnit = $("massUnit").value;
+
+    const mode = $("mode").value; // M, F, N
+    const concVal = parseFloat($("conc").value);
+    const prefMult = parseFloat($("prefix").value);
+    const unitType = $("unitType").value;
+
+    const nfactor = parseFloat($("nfactor").value);
+
+    const status = $("status");
+    const warn = $("warn");
+    const ok = $("ok");
+
+    warn.style.display = "none";
+    ok.style.display = "none";
+    warn.textContent = "";
+    ok.textContent = "";
+
+    // Preview label
+    const prefTxt = prefixLabel(prefMult);
+    const preview = `${isFinite(concVal) ? concVal : "—"} ${prefTxt}${unitType}`;
+    $("concPreview").textContent = preview;
+
+    // Show/hide n-factor
+    $("nfactorWrap").style.display = (mode === "N") ? "block" : "none";
+
+    if (!isFinite(fw) || fw <= 0){
+      status.textContent = "Enter a positive formula weight (g/mol).";
+      setOutputsNa();
+      return;
+    }
+
+    if (!isFinite(concVal) || concVal < 0){
+      status.textContent = "Enter a non-negative target concentration value.";
+      setOutputsNa();
+      return;
+    }
+
+    const targetC = concVal * prefMult; // in base unit (M/F/N)
+    if (!isFinite(targetC)){
+      status.textContent = "Concentration input looks invalid.";
+      setOutputsNa();
+      return;
+    }
+
+    // Convert to molarity used in mass/volume math
+    // M_for_calc = targetC for M or F; for N, M = N/n
+    let M_for_calc = targetC;
+    if (mode === "N"){
+      if (!isFinite(nfactor) || nfactor <= 0){
+        status.textContent = "Normality selected: enter a positive n-factor.";
+        setOutputsNa();
+        return;
+      }
+      M_for_calc = targetC / nfactor;
+    }
+
+    $("molM").textContent = fmt(M_for_calc, 6);
+    $("labelConc").textContent = preview;
+
+    // Compute depending on solveFor
+    if (solveFor === "mass"){
+      const V_L = toLiters(vol, volUnit);
+      if (!isFinite(V_L) || V_L <= 0){
+        status.textContent = "Enter a positive final volume.";
+        setOutputsNa();
+        return;
+      }
+
+      const mass_g = M_for_calc * V_L * fw;
+      renderMass(mass_g);
+      renderVolume(V_L);
+
+      const nice = pickNiceMass(mass_g);
+      $("mainValue").textContent = nice.value;
+      $("mainUnitPill").textContent = nice.unit;
+      $("headline").innerHTML = `Weigh: <span id="mainValue">${nice.value}</span> <span class="pill" id="mainUnitPill">${nice.unit}</span>`;
+
+      const typeWord = (mode === "M") ? "molar" : (mode === "F") ? "formal" : "normal";
+      const unitWord = (unitType === "M") ? "M" : (unitType === "F") ? "F" : "N";
+      const volPretty = `${fmt(vol, 6)} ${volUnit}`;
+      const concPretty = `${fmt(concVal, 6)} ${prefixLabel(prefMult)}${unitWord}`.trim();
+      const nText = (mode === "N") ? ` (n-factor ${fmt(nfactor, 6)})` : "";
+
+      // Build clipboard text (multi-line, paste-friendly)
+      lastCopyText = [
+        "Molarity / Formality / Normality calculator",
+        `Solve for: mass (given final volume)`,
+        `Formula weight: ${fmt(fw, 8)} g/mol`,
+        `Target label: ${preview}`,
+        `Working molarity for calculation: ${fmt(M_for_calc, 10)} M${mode === "N" ? ` (n-factor ${fmt(nfactor, 8)})` : ""}`,
+        `Final volume: ${fmt(vol, 8)} ${volUnit}  (= ${fmt(V_L, 10)} L)`,
+        `Mass required: ${fmt(mass_g, 10)} g  (= ${fmt(mass_g*1e3, 10)} mg; ${fmt(mass_g*1e6, 10)} µg)`,
+        "",
+        "Note: Weigh the solute, dissolve, then bring to the final volume."
+      ].join("\n");
+
+      status.textContent = "Calculated from: mass = (M_for_calc) × V(L) × FW(g/mol).";
+
+      practicalHintsMass(mass_g);
+
+    } else {
+      const mass_g = massToGrams(massIn, massUnit);
+      if (!isFinite(mass_g) || mass_g < 0){
+        status.textContent = "Enter a non-negative mass.";
+        setOutputsNa();
+        return;
+      }
+      if (M_for_calc === 0){
+        status.textContent = "Target concentration is zero, so volume would be infinite. Increase concentration.";
+        setOutputsNa();
+        return;
+      }
+
+      // V(L) = mass / (FW * M)
+      const V_L = mass_g / (fw * M_for_calc);
+
+      renderMass(mass_g);
+      renderVolume(V_L);
+
+      const niceV = pickNiceVolume(V_L);
+      $("mainValue").textContent = niceV.value;
+      $("mainUnitPill").textContent = niceV.unit;
+      $("headline").innerHTML = `Final volume: <span id="mainValue">${niceV.value}</span> <span class="pill" id="mainUnitPill">${niceV.unit}</span>`;
+
+      const typeWord = (mode === "M") ? "molar" : (mode === "F") ? "formal" : "normal";
+      const unitWord = (unitType === "M") ? "M" : (unitType === "F") ? "F" : "N";
+      const massPretty = `${fmt(massIn, 6)} ${massUnit === "ug" ? "µg" : massUnit}`;
+      const concPretty = `${fmt(concVal, 6)} ${prefixLabel(prefMult)}${unitWord}`.trim();
+      const nText = (mode === "N") ? ` (n-factor ${fmt(nfactor, 6)})` : "";
+
+      // Build clipboard text (multi-line, paste-friendly)
+      lastCopyText = [
+        "Molarity / Formality / Normality calculator",
+        `Solve for: final volume achievable (given mass)`,
+        `Formula weight: ${fmt(fw, 8)} g/mol`,
+        `Target label: ${preview}`,
+        `Working molarity for calculation: ${fmt(M_for_calc, 10)} M${mode === "N" ? ` (n-factor ${fmt(nfactor, 8)})` : ""}`,
+        `Mass available: ${massPretty}  (= ${fmt(mass_g, 10)} g)`,
+        `Final volume achievable: ${fmt(V_L, 10)} L  (= ${fmt(V_L*1000, 10)} mL; ${fmt(V_L*1e6, 10)} µL)`,
+        "",
+        "Note: Dissolve the solute and bring to the final volume shown."
+      ].join("\n");
+
+      status.textContent = "Calculated from: V(L) = mass(g) / (FW(g/mol) × M_for_calc).";
+
+      practicalHintsVolume(V_L);
+    }
+  }
+
+  function renderMass(mass_g){
+    $("massG").textContent = fmt(mass_g, 6);
+    $("massMg").textContent = fmt(mass_g * 1e3, 6);
+    $("massUg").textContent = fmt(mass_g * 1e6, 6);
+  }
+
+  function renderVolume(V_L){
+    $("volL").textContent = fmt(V_L, 6);
+    $("volmL").textContent = fmt(V_L * 1000, 6);
+    $("voluL").textContent = fmt(V_L * 1e6, 6);
+  }
+
+  function practicalHintsMass(mass_g){
+    const warn = $("warn");
+    const ok = $("ok");
+    const abs = Math.abs(mass_g);
+
+    if (abs > 0 && abs < 1e-6){
+      warn.style.display = "block";
+      warn.textContent = "This mass is extremely small (sub-µg). In practice, make a higher-concentration stock and dilute.";
+    } else if (abs >= 1e3){
+      warn.style.display = "block";
+      warn.textContent = "This mass is very large. Double-check concentration scale (µ/n/f) and volume units.";
+    } else {
+      ok.style.display = "block";
+      ok.textContent = "Looks reasonable. (Still: check n-factor if using Normality.)";
+    }
+  }
+
+  function practicalHintsVolume(V_L){
+    const warn = $("warn");
+    const ok = $("ok");
+    if (!isFinite(V_L)) return;
+
+    if (V_L === 0){
+      warn.style.display = "block";
+      warn.textContent = "Volume is zero — check inputs (mass or concentration may be 0).";
+    } else if (V_L < 1e-6){
+      warn.style.display = "block";
+      warn.textContent = "This final volume is tiny (sub-µL). Consider making a larger batch or making a stock and diluting.";
+    } else if (V_L > 100){
+      warn.style.display = "block";
+      warn.textContent = "This final volume is very large (>100 L). Double-check concentration scale (µ/n/f) and units.";
+    } else {
+      ok.style.display = "block";
+      ok.textContent = "Looks reasonable. (Still: check n-factor if using Normality.)";
+    }
+  }
+
+  function setOutputsNa(){
+    $("mainValue").textContent = "—";
+    $("mainUnitPill").textContent = "g";
+    $("massG").textContent = "—";
+    $("massMg").textContent = "—";
+    $("massUg").textContent = "—";
+    $("volL").textContent = "—";
+    $("volmL").textContent = "—";
+    $("voluL").textContent = "—";
+    $("molM").textContent = "—";
+    $("labelConc").textContent = "—";
+    lastCopyText = "";
+    $("warn").style.display = "none";
+    $("ok").style.display = "none";
+  }
+
+  // ---------- Events ----------
+  const inputs = ["solveFor","fw","vol","volUnit","massIn","massUnit","mode","conc","prefix","unitType","nfactor"];
+  inputs.forEach(id => $(id).addEventListener("input", () => {
+    if (id === "mode") updateUnitTypeToMode();
+    if (id === "solveFor") syncSolveForUI();
+    recalc();
+  }));
+  inputs.forEach(id => $(id).addEventListener("change", () => {
+    if (id === "mode") updateUnitTypeToMode();
+    if (id === "solveFor") syncSolveForUI();
+    recalc();
+  }));
+
+  // Quick toggles: micro/nano/femto
+  document.querySelectorAll(".seg button").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".seg button").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      $("prefix").value = btn.dataset.pref;
+      recalc();
+    });
+  });
+
+  // Copy calculation summary
+  $("copyBtn").addEventListener("click", async () => {
+    const txt = lastCopyText || "";
+    if (!txt.trim()){
+      $("status").textContent = "Nothing to copy yet — enter inputs to calculate.";
+      return;
+    }
+    try{
+      await navigator.clipboard.writeText(txt);
+      $("status").textContent = "Copied calculation to clipboard.";
+    }catch(e){
+      const ta = document.createElement("textarea");
+      ta.value = txt;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      ta.remove();
+      $("status").textContent = "Copied calculation (fallback).";
+    }
+  });
+
+  // Reset
+  $("resetBtn").addEventListener("click", () => {
+    $("solveFor").value = "mass";
+    $("fw").value = "180.16";
+    $("vol").value = "100";
+    $("volUnit").value = "mL";
+    $("massIn").value = "0.500";
+    $("massUnit").value = "g";
+    $("mode").value = "M";
+    $("conc").value = "10";
+    $("prefix").value = "1e-6"; // µ
+    $("unitType").value = "M";
+    $("nfactor").value = "1";
+    document.querySelectorAll(".seg button").forEach(b => b.classList.remove("active"));
+    document.querySelector('.seg button[data-pref="1e-6"]').classList.add("active");
+    updateUnitTypeToMode();
+    syncSolveForUI();
+    recalc();
+  });
+
+  // Initialize
+  updateUnitTypeToMode();
+  syncSolveForUI();
+  recalc();
+</script>
+
+<footer style="
+  margin-top: 40px;
+  padding-top: 10px;
+  border-top: 1px solid #ccc;
+  text-align: center;
+  font-size: 0.9rem;
+  color: #555;
+">
+  © <a href="mailto:palpurab@gmail.com"
+       style="color:#333; font-weight:600; text-decoration:none;">
+       Purab Pal
+     </a>, 2026<br/>
+  <span class="small">
+    For comments or concerns, click on the name above.
+  </span>
+</footer>
+</body>
+</html>

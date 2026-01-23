@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Beating Explorer</title>
+
+  <style>
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      margin: 16px;
+      line-height: 1.35;
+      background-color: #f4f7fa; /* cool, neutral */
+    }
+
+    .wrap { max-width: 820px; margin: 0 auto; }
+    h1 { margin-bottom: 6px; }
+
+    .desc {
+      font-size: 0.95rem;
+      color: #333;
+      margin-bottom: 18px;
+    }
+
+    .panel {
+      border: 1px solid #ddd;
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 18px;
+      background: rgba(255,255,255,0.6);
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 200px 1fr;
+      gap: 12px;
+      align-items: center;
+      margin: 10px 0;
+    }
+
+    button {
+      padding: 12px;
+      width: 100%;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+
+    input[type="range"] { width: 100%; }
+    .center { text-align: center; }
+
+    .small {
+      font-size: 0.9rem;
+      color: #444;
+    }
+
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.9rem;
+      margin-top: 10px;
+      display: none;
+      text-align: left;
+      line-height: 1.4;
+      white-space: pre-line;
+    }
+
+    /* Canvas container */
+    .wavebox {
+      display: none;
+      margin-top: 12px;
+      text-align: left;
+    }
+
+    canvas {
+      width: 100%;
+      max-width: 100%;
+      height: 180px; /* CSS size */
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.7);
+    }
+
+    .footer {
+      margin-top: 20px;
+      font-size: 0.85rem;
+      color: #444;
+      text-align: center;
+    }
+
+    .footer a { color: inherit; text-decoration: underline; }
+
+    @media (max-width: 640px) {
+      .row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+
+<body>
+<div class="wrap">
+
+  <h1>Beating Explorer</h1>
+
+  <div class="desc">
+    Two tones are played together. One remains fixed, while the frequency of the other can be slowly adjusted using the slider.
+    <br><br>
+    Move the control and listen carefully. When the two frequencies differ, you may hear a pulsing or roughness.
+    Continue adjusting until this roughness diminishes or disappears. At that point, the two waves are very close in frequency, and their phases no longer drift rapidly relative to one another.
+    <br><br>
+    Let your ear decide when you think you have matched the frequency. Then reveal the result and see how close you were.
+  </div>
+
+  <div class="panel">
+    <div class="row">
+      <strong>Adjust second tone</strong>
+      <input id="slider" type="range" min="-20" max="20" step="0.1" value="6">
+    </div>
+
+    <div class="row">
+      <button id="playBtn">Play / Stop</button>
+    </div>
+  </div>
+
+  <div class="panel center">
+    <button id="revealBtn">Reveal frequencies</button>
+    <div class="mono" id="reveal"></div>
+
+    <div class="wavebox" id="wavebox">
+      <div class="small" style="margin-bottom:6px;">
+        Wave sketches (same time window; amplitudes normalized)
+      </div>
+      <!-- Set intrinsic pixel size for crispness -->
+      <canvas id="waveCanvas" width="900" height="220"></canvas>
+      <div class="small" style="margin-top:6px;">
+        (These are schematic plots, not measurements from your audio device.)
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    © <a href="mailto:palpurab@gmail.com">Purab Pal</a>, 2026<br>
+    For comments or concerns, click on the name above.
+  </div>
+
+</div>
+
+<script>
+(() => {
+  let audioCtx = null;
+  let masterGain = null;
+  let oscA = null;
+  let oscB = null;
+  let gainA = null;
+  let gainB = null;
+  let playing = false;
+
+  const slider = document.getElementById("slider");
+  const playBtn = document.getElementById("playBtn");
+  const revealBtn = document.getElementById("revealBtn");
+  const reveal = document.getElementById("reveal");
+
+  const wavebox = document.getElementById("wavebox");
+  const canvas = document.getElementById("waveCanvas");
+  const ctx = canvas.getContext("2d");
+
+  const baseFreq = 220; // hidden reference frequency
+
+  function ensureAudio() {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      masterGain = audioCtx.createGain();
+      masterGain.gain.value = 0.25;
+      masterGain.connect(audioCtx.destination);
+    }
+  }
+
+  function fade(param, value, t = 0.03) {
+    const now = audioCtx.currentTime;
+    param.cancelScheduledValues(now);
+    param.setValueAtTime(param.value, now);
+    param.linearRampToValueAtTime(value, now + t);
+  }
+
+  function start() {
+    ensureAudio();
+    if (audioCtx.state === "suspended") audioCtx.resume();
+
+    oscA = audioCtx.createOscillator();
+    oscB = audioCtx.createOscillator();
+    gainA = audioCtx.createGain();
+    gainB = audioCtx.createGain();
+
+    oscA.type = "sine";
+    oscB.type = "sine";
+
+    oscA.frequency.value = baseFreq;
+    oscB.frequency.value = baseFreq + parseFloat(slider.value);
+
+    gainA.gain.value = 0;
+    gainB.gain.value = 0;
+
+    oscA.connect(gainA); gainA.connect(masterGain);
+    oscB.connect(gainB); gainB.connect(masterGain);
+
+    oscA.start();
+    oscB.start();
+
+    fade(gainA.gain, 0.18);
+    fade(gainB.gain, 0.18);
+
+    playing = true;
+  }
+
+  function stop() {
+    if (!playing) return;
+    fade(gainA.gain, 0);
+    fade(gainB.gain, 0);
+
+    setTimeout(() => {
+      try { oscA.stop(); oscB.stop(); } catch (_) {}
+      try { oscA.disconnect(); oscB.disconnect(); } catch (_) {}
+      try { gainA.disconnect(); gainB.disconnect(); } catch (_) {}
+      oscA = oscB = gainA = gainB = null;
+      playing = false;
+    }, 40);
+  }
+
+  slider.addEventListener("input", () => {
+    if (playing && oscB) {
+      oscB.frequency.setValueAtTime(
+        baseFreq + parseFloat(slider.value),
+        audioCtx.currentTime
+      );
+    }
+  });
+
+  playBtn.onclick = () => {
+    if (playing) stop();
+    else start();
+  };
+
+  // Draw two sine waves over a short time window.
+  // Choose window so multiple cycles are visible at ~220 Hz.
+  function drawWaves(f1, f2) {
+    const W = canvas.width;
+    const H = canvas.height;
+
+    // Clear
+    ctx.clearRect(0, 0, W, H);
+
+    // Background grid (light)
+    ctx.globalAlpha = 0.35;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    const gridY = 5;
+    for (let i = 1; i < gridY; i++) {
+      const y = (H * i) / gridY;
+      ctx.moveTo(0, y);
+      ctx.lineTo(W, y);
+    }
+    const gridX = 10;
+    for (let i = 1; i < gridX; i++) {
+      const x = (W * i) / gridX;
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, H);
+    }
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    // Middle line
+    ctx.globalAlpha = 0.6;
+    ctx.beginPath();
+    ctx.moveTo(0, H/2);
+    ctx.lineTo(W, H/2);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    // Time window in seconds (short)
+    const T = 0.02; // 20 ms window
+
+    // Helper to plot a sine
+    function plotSine(freq, verticalOffset, amplitude) {
+      ctx.beginPath();
+      for (let x = 0; x < W; x++) {
+        const t = (x / (W - 1)) * T; // seconds
+        const y = verticalOffset - amplitude * Math.sin(2 * Math.PI * freq * t);
+        if (x === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+
+    // Draw first wave (slightly above center)
+    ctx.lineWidth = 2;
+    plotSine(f1, H * 0.40, H * 0.18);
+
+    // Draw second wave (slightly below center)
+    ctx.lineWidth = 2;
+    plotSine(f2, H * 0.60, H * 0.18);
+
+    // Labels (minimal, no Hz on the plot itself)
+    ctx.font = "14px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
+    ctx.fillText("Wave 1", 12, 22);
+    ctx.fillText("Wave 2", 12, H - 12);
+  }
+
+  revealBtn.onclick = () => {
+    const f1 = baseFreq;
+    const f2 = baseFreq + parseFloat(slider.value);
+
+    reveal.style.display = "block";
+    reveal.textContent =
+      `Reference tone: ${f1.toFixed(1)} Hz\n` +
+      `Adjustable tone: ${f2.toFixed(1)} Hz\n` +
+      `Difference: ${(f2 - f1).toFixed(1)} Hz`;
+
+    wavebox.style.display = "block";
+    drawWaves(f1, f2);
+  };
+})();
+</script>
+
+</body>
+</html>
