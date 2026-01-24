@@ -1,0 +1,650 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Shape of Sound</title>
+  <style>
+    :root{
+      --bg:#0b1220; --card:#111a2e; --ink:#e9eefc; --muted:#aab6e8;
+      --accent:#78d7ff; --accent2:#a7ff78; --warn:#ffd37a;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+      background: radial-gradient(1200px 700px at 20% 0%, #142047 0%, var(--bg) 55%);
+      color:var(--ink);
+    }
+    .wrap{max-width:1100px;margin:24px auto;padding:0 14px}
+    .card{
+      background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.02));
+      border:1px solid rgba(255,255,255,.09);
+      border-radius:16px;
+      padding:18px;
+      box-shadow:0 14px 40px rgba(0,0,0,.35);
+    }
+    h1{margin:0 0 6px;font-size:22px;letter-spacing:.2px}
+    p{margin:6px 0 0;color:var(--muted);line-height:1.35}
+    .grid{display:grid;gap:14px;grid-template-columns: 1fr}
+    @media (min-width:980px){ .grid{grid-template-columns: 420px 1fr} }
+
+    .controls{
+      display:grid; gap:12px; margin-top:14px;
+      background:rgba(0,0,0,.18);
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:14px; padding:14px;
+    }
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:space-between}
+    label{font-size:13px;color:var(--muted)}
+    input[type="range"]{width:100%}
+    .pill{
+      display:inline-flex; align-items:center; gap:8px;
+      padding:8px 10px; border-radius:999px;
+      border:1px solid rgba(255,255,255,.12);
+      background:rgba(255,255,255,.05);
+      font-size:13px; color:var(--ink);
+      white-space:nowrap;
+    }
+    .btn{
+      cursor:pointer; user-select:none;
+      border:1px solid rgba(255,255,255,.14);
+      background:linear-gradient(180deg,rgba(120,215,255,.22),rgba(120,215,255,.10));
+      color:var(--ink);
+      padding:10px 12px; border-radius:12px;
+      font-weight:700; letter-spacing:.2px;
+      transition:transform .05s ease, filter .15s ease;
+    }
+    .btn:active{transform:translateY(1px)}
+    .btn.ghost{background:rgba(255,255,255,.04)}
+    .tiny{font-size:12px;color:var(--muted)}
+    .note{
+      font-size:12.5px; color:var(--muted);
+      border-left:3px solid rgba(120,215,255,.55);
+      padding-left:10px; margin-top:10px;
+    }
+    .warn{color:var(--warn)}
+    .waves{
+      display:grid; gap:12px; margin-top:10px;
+      grid-template-columns: 1fr 1fr;
+    }
+    .tile{
+      border:1px solid rgba(255,255,255,.10);
+      background:rgba(255,255,255,.04);
+      border-radius:14px;
+      padding:10px;
+    }
+    .tileHead{display:flex;align-items:center;justify-content:space-between;gap:8px}
+    .tileHead b{font-size:14px}
+    .tileHead small{color:var(--muted)}
+
+    /* Each waveform block: keep name badge + number badge on one line */
+    .waveBlock{min-width:0}
+    .waveHeader{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      flex-wrap:nowrap;           /* important: no wrap */
+      min-width:0;
+      margin-bottom:6px;
+    }
+    .switch{
+      display:flex;align-items:center;gap:8px;
+      padding:7px 10px;border-radius:999px;
+      border:1px solid rgba(255,255,255,.12);
+      background:rgba(0,0,0,.16);
+      cursor:pointer; user-select:none;
+      font-size:13px;
+      flex: 0 0 auto;
+    }
+    .dot{width:10px;height:10px;border-radius:999px;background:rgba(255,255,255,.25)}
+    .switch.on .dot{background:rgba(167,255,120,.9)}
+    .levelPill{
+      flex: 0 0 auto;
+      padding:8px 10px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.12);
+      background:rgba(255,255,255,.05);
+      font-size:13px;
+      color:var(--ink);
+      white-space:nowrap;
+    }
+
+    canvas{
+      width:100%; height:360px;
+      background:rgba(0,0,0,.22);
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:14px;
+      display:block;
+    }
+    .footer{
+      margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:flex-end;
+      color:var(--muted); font-size:12px;
+    }
+    .legend{
+      margin-top:10px;
+      border:1px solid rgba(255,255,255,.10);
+      background:rgba(255,255,255,.03);
+      border-radius:14px;
+      padding:10px;
+    }
+    .legend b{color:var(--ink)}
+    .legend p{margin:6px 0 0}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Shape of Sound</h1>
+      <p>Same frequency, different wave-shapes. The “pitch” stays fixed, yet the experience changes. Toggle the options under "Shapes to layer" to hear how different mixtures of harmonics (right panel) create different wave-shapes (left panel) — and how those shapes correspond to different sound qualities, even though the fundamental frequency remains unchanged.</p>
+
+<p>Click the shape names to toggle them on/off.</p>
+      <div class="grid" style="margin-top:16px;">
+        <div>
+          <div class="controls">
+            <div class="row">
+              <button id="playBtn" class="btn">▶ Play</button>
+              <button id="stopBtn" class="btn ghost">Stop</button>
+              <span class="pill"><span id="stateDot" class="warn">●</span><span id="stateText">Stopped</span></span>
+            </div>
+
+            <div>
+              <div class="row">
+                <label for="freq">Frequency (all shapes share this)</label>
+                <span class="pill"><span id="freqVal">220</span> Hz</span>
+              </div>
+              <input id="freq" type="range" min="55" max="880" step="1" value="220" />
+              <div class="tiny">Waveform view shows <b>two cycles</b>, so the “shape” stays visible even at high pitch.</div>
+            </div>
+
+            <div>
+              <div class="row">
+                <label for="master">Master volume</label>
+                <span class="pill"><span id="masterVal">0.22</span></span>
+              </div>
+              <input id="master" type="range" min="0" max="0.6" step="0.01" value="0.22" />
+              <div class="note">
+                Philosophical punchline: <b>“Same pitch” ≠ “same experience.”</b><br/>
+                One frequency can still feel smooth, edgy, hollow, bright—depending on spectral makeup.
+              </div>
+            </div>
+
+            <div class="tile">
+              <div class="tileHead">
+                <b>Shapes to layer</b>
+                <small>(toggle any combination)</small>
+              </div>
+
+              <div class="waves">
+                <div class="waveBlock">
+                  <div class="waveHeader">
+                    <div class="switch on" data-wave="sine"><div class="dot"></div><span>Sine</span></div>
+                    <div class="levelPill"><span id="lvl_sine">0.25</span></div>
+                  </div>
+                  <input id="gain_sine" type="range" min="0" max="0.5" step="0.01" value="0.25" />
+                </div>
+
+                <div class="waveBlock">
+                  <div class="waveHeader">
+                    <div class="switch" data-wave="square"><div class="dot"></div><span>Square</span></div>
+                    <div class="levelPill"><span id="lvl_square">0.00</span></div>
+                  </div>
+                  <input id="gain_square" type="range" min="0" max="0.5" step="0.01" value="0.00" />
+                </div>
+
+                <div class="waveBlock">
+                  <div class="waveHeader">
+                    <div class="switch" data-wave="triangle"><div class="dot"></div><span>Triangle</span></div>
+                    <div class="levelPill"><span id="lvl_triangle">0.00</span></div>
+                  </div>
+                  <input id="gain_triangle" type="range" min="0" max="0.5" step="0.01" value="0.00" />
+                </div>
+
+                <div class="waveBlock">
+                  <div class="waveHeader">
+                    <div class="switch" data-wave="sawtooth"><div class="dot"></div><span>Saw</span></div>
+                    <div class="levelPill"><span id="lvl_sawtooth">0.00</span></div>
+                  </div>
+                  <input id="gain_sawtooth" type="range" min="0" max="0.5" step="0.01" value="0.00" />
+                </div>
+              </div>
+
+              <div class="tiny" style="margin-top:8px;">
+                Try: sine + square, then sine + saw. The pitch stays “the same,” but the mind hears a different object.
+              </div>
+            </div>
+
+            <div class="tiny warn" id="warn" style="display:none;">
+              If it feels harsh, lower master volume or reduce square/saw levels.
+            </div>
+          </div>
+
+          <div class="footer">
+            <span>© Purab Pal, 2026</span>
+          </div>
+        </div>
+
+        <div>
+          <canvas id="viz" width="1100" height="420"></canvas>
+
+          <div class="legend">
+            <b>How to read the right panel</b>
+            <p class="tiny">
+              The x-axis is <b>Harmonics</b>: 1, 2, 3, 4… where <b>1</b> is the fundamental (your chosen Hz) and <b>n</b> is at <b>n×Hz</b>.
+              The y-axis is <b>Amplitude</b>: bar height shows the <b>relative strength</b> of each harmonic in the current mix.
+              Different wave-shapes emphasize different harmonics—so the pitch can match while the spectrum (and timbre) changes.
+            </p>
+          </div>
+
+          <div class="tiny" style="margin-top:8px;">
+            Left: combined signal drawn as <b>two cycles</b> (shape view). Right: first ~20 harmonics sampled from the analyser (amplitude vs harmonic number).
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+
+  const playBtn = $("playBtn");
+  const stopBtn = $("stopBtn");
+  const freqEl = $("freq");
+  const masterEl = $("master");
+
+  const freqVal = $("freqVal");
+  const masterVal = $("masterVal");
+
+  const stateDot = $("stateDot");
+  const stateText = $("stateText");
+
+  const canvas = $("viz");
+  const ctx = canvas.getContext("2d");
+
+  const warnEl = $("warn");
+
+  const waves = ["sine","square","triangle","sawtooth"];
+
+  // Default: pure sine only
+  const DEFAULT_ON = { sine:true, square:false, triangle:false, sawtooth:false };
+
+  let audioCtx = null;
+  let masterGain = null;
+  let analyser = null;
+
+  const oscMap = new Map();
+  const gainMap = new Map();
+  const onMap = new Map();
+
+  let playing = false;
+
+  function setState(isOn){
+    playing = isOn;
+    stateDot.style.color = isOn ? "#a7ff78" : "#ffd37a";
+    stateText.textContent = isOn ? "Playing" : "Stopped";
+  }
+
+  function ramp(param, target, t = 0.02){
+    if (!audioCtx) return;
+    const now = audioCtx.currentTime;
+    param.cancelScheduledValues(now);
+    param.setValueAtTime(param.value, now);
+    param.linearRampToValueAtTime(target, now + t);
+  }
+
+  function ensureAudio(){
+    if (audioCtx) return;
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    masterGain = audioCtx.createGain();
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 4096;
+    analyser.smoothingTimeConstant = 0.88;
+
+    masterGain.connect(analyser);
+    analyser.connect(audioCtx.destination);
+
+    const f0 = parseFloat(freqEl.value);
+
+    waves.forEach(w => {
+      const osc = audioCtx.createOscillator();
+      osc.type = w;
+      osc.frequency.value = f0;
+
+      const gn = audioCtx.createGain();
+      gn.gain.value = 0.0;
+
+      osc.connect(gn);
+      gn.connect(masterGain);
+
+      osc.start();
+
+      oscMap.set(w, osc);
+      gainMap.set(w, gn);
+    });
+
+    masterGain.gain.value = 0.00001;
+  }
+
+  async function play(){
+    ensureAudio();
+    if (audioCtx.state === "suspended") await audioCtx.resume();
+    updateAllVoiceGains();
+    ramp(masterGain.gain, parseFloat(masterEl.value), 0.03);
+    setState(true);
+    updateAllVoiceGains();
+  }
+
+  function stop(){
+    if (!audioCtx) return;
+    ramp(masterGain.gain, 0.00001, 0.03);
+    setState(false);
+    updateAllVoiceGains();
+  }
+
+  function updateAllVoiceGains(){
+    waves.forEach(w => updateOneVoiceGain(w));
+  }
+
+  function updateOneVoiceGain(w){
+    const gn = gainMap.get(w);
+    const slider = $("gain_" + w);
+    const enabled = onMap.get(w);
+
+    $("lvl_" + w).textContent = parseFloat(slider.value).toFixed(2);
+
+    if (!audioCtx || !gn) return;
+    ramp(gn.gain, (playing && enabled) ? parseFloat(slider.value) : 0.0, 0.02);
+  }
+
+  function setFreqAll(){
+    const f0 = parseFloat(freqEl.value);
+    freqVal.textContent = freqEl.value;
+    if (!audioCtx) return;
+    waves.forEach(w => {
+      const osc = oscMap.get(w);
+      if (osc) osc.frequency.setValueAtTime(f0, audioCtx.currentTime);
+    });
+  }
+
+  function setMaster(){
+    const m = parseFloat(masterEl.value);
+    masterVal.textContent = m.toFixed(2);
+    warnEl.style.display = m > 0.45 ? "block" : "none";
+    if (!audioCtx || !masterGain) return;
+    ramp(masterGain.gain, playing ? m : 0.00001, 0.03);
+  }
+
+  // --- Idealized waveform drawing (two cycles) ---
+  function waveSample(type, phase01){
+    const t = phase01;
+    if (type === "sine") return Math.sin(2 * Math.PI * t);
+    if (type === "square") return (t < 0.5) ? 1 : -1;
+    if (type === "sawtooth") return 2 * (t - Math.floor(t + 0.5)); // [-1,1)
+    if (type === "triangle") {
+      const s = 2 * (t - Math.floor(t + 0.5));
+      return 2 * Math.abs(s) - 1;
+    }
+    return 0;
+  }
+
+  function combinedAtPhase(phase01){
+    let y = 0;
+    waves.forEach(w => {
+      if (!onMap.get(w)) return;
+      const a = parseFloat($("gain_" + w).value);
+      y += a * waveSample(w, phase01);
+    });
+    return y;
+  }
+
+  // --- Harmonic sampling from analyser: amplitude vs harmonic number ---
+  let freqData = null;
+
+  function getHarmonicAmps(f0, maxHarm = 20){
+    if (!analyser || !audioCtx) return [];
+
+    if (!freqData || freqData.length !== analyser.frequencyBinCount){
+      freqData = new Uint8Array(analyser.frequencyBinCount);
+    }
+    analyser.getByteFrequencyData(freqData);
+
+    const nyquist = audioCtx.sampleRate / 2;
+    const binHz = nyquist / freqData.length;
+
+    const out = [];
+    for (let n = 1; n <= maxHarm; n++){
+      const f = n * f0;
+      if (f >= nyquist) break;
+
+      const idx = Math.round(f / binHz);
+      let best = 0;
+      for (let k = -2; k <= 2; k++){
+        const j = idx + k;
+        if (j >= 0 && j < freqData.length) best = Math.max(best, freqData[j]);
+      }
+      out.push({ n, amp: best / 255 });
+    }
+
+    const m = out.reduce((acc, d) => Math.max(acc, d.amp), 0) || 1;
+    out.forEach(d => d.amp = d.amp / m);
+    return out;
+  }
+
+  // UI toggles
+  document.addEventListener("click", (e) => {
+    const sw = e.target.closest(".switch");
+    if (!sw) return;
+    const w = sw.dataset.wave;
+    if (!waves.includes(w)) return;
+
+    const nowOn = !onMap.get(w);
+    onMap.set(w, nowOn);
+    sw.classList.toggle("on", nowOn);
+
+    updateOneVoiceGain(w);
+  });
+
+  // sliders
+  freqEl.addEventListener("input", () => { setFreqAll(); });
+  masterEl.addEventListener("input", () => { setMaster(); });
+
+  waves.forEach(w => {
+    const el = $("gain_" + w);
+    $("lvl_" + w).textContent = parseFloat(el.value).toFixed(2);
+    el.addEventListener("input", () => updateOneVoiceGain(w));
+  });
+
+  playBtn.addEventListener("click", play);
+  stopBtn.addEventListener("click", stop);
+
+  // --- Drawing ---
+  function draw(){
+    const W = canvas.width, H = canvas.height;
+    ctx.clearRect(0,0,W,H);
+    ctx.fillStyle = "rgba(0,0,0,0.18)";
+    ctx.fillRect(0,0,W,H);
+
+    const mid = Math.floor(W*0.60);
+
+    // grid + split
+    ctx.globalAlpha = 0.25;
+    ctx.strokeStyle = "rgba(255,255,255,0.25)";
+    ctx.lineWidth = 1;
+    for (let i=1;i<=5;i++){
+      const y = (H*i)/6;
+      ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke();
+    }
+    ctx.beginPath(); ctx.moveTo(mid,0); ctx.lineTo(mid,H); ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    // Titles
+    ctx.fillStyle = "rgba(233,238,252,0.92)";
+    ctx.font = "14px system-ui, sans-serif";
+    ctx.fillText("Combined waveform (two cycles)", 10, 20);
+    ctx.fillText("Harmonics (Amplitude vs Harmonic #)", mid + 10, 20);
+
+    // Left: two-cycle shape
+    const leftPadX = 14, leftPadY = 40;
+    const leftW = mid - 28;
+    const leftH = H - leftPadY - 20;
+
+    // baseline
+    ctx.globalAlpha = 0.35;
+    ctx.strokeStyle = "rgba(255,255,255,0.35)";
+    ctx.beginPath();
+    ctx.moveTo(leftPadX, leftPadY + leftH/2);
+    ctx.lineTo(leftPadX + leftW, leftPadY + leftH/2);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    // normalize to fit
+    const N = 800;
+    let maxAbs = 0;
+    for (let i=0;i<N;i++){
+      const t = i/(N-1);
+      const phase = (2*t) % 1; // two cycles
+      maxAbs = Math.max(maxAbs, Math.abs(combinedAtPhase(phase)));
+    }
+    maxAbs = maxAbs || 1;
+
+    ctx.strokeStyle = "rgba(120,215,255,0.95)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let i=0;i<N;i++){
+      const t = i/(N-1);
+      const phase = (2*t) % 1;
+      const x = leftPadX + t * leftW;
+      const yNorm = combinedAtPhase(phase) / maxAbs;
+      const y = leftPadY + (1 - (yNorm*0.95 + 1)/2) * leftH;
+      if (i===0) ctx.moveTo(x,y);
+      else ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+
+    // Right: harmonic bars + axis labels
+    const rightX = mid + 55;
+    const rightY = 40;
+    const rightW = W - rightX - 18;
+    const rightH = H - rightY - 58;
+
+    // axis lines
+    ctx.globalAlpha = 0.5;
+    ctx.strokeStyle = "rgba(255,255,255,0.35)";
+    ctx.lineWidth = 1;
+
+    // y-axis
+    ctx.beginPath();
+    ctx.moveTo(rightX, rightY);
+    ctx.lineTo(rightX, rightY + rightH);
+    ctx.stroke();
+
+    // x-axis
+    ctx.beginPath();
+    ctx.moveTo(rightX, rightY + rightH);
+    ctx.lineTo(rightX + rightW, rightY + rightH);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    // labels
+    ctx.fillStyle = "rgba(233,238,252,0.80)";
+    ctx.font = "13px system-ui, sans-serif";
+
+    // y label (rotated)
+    ctx.save();
+    ctx.translate(mid + 22, rightY + rightH/2);
+    ctx.rotate(-Math.PI/2);
+    ctx.fillText("Amplitude", 0, 0);
+    ctx.restore();
+
+    // x label
+    ctx.fillText("Harmonics", rightX + rightW/2 - 34, rightY + rightH + 44);
+
+    const f0 = parseFloat(freqEl.value);
+    const harmonics = getHarmonicAmps(f0, 20);
+
+    if (!harmonics.length){
+      ctx.fillStyle = "rgba(170,182,232,0.92)";
+      ctx.font = "13px system-ui, sans-serif";
+      ctx.fillText("Press Play to measure harmonics.", rightX + 10, rightY + 22);
+    } else {
+      const bars = harmonics.length;
+      const gap = 6;
+      const barW = Math.max(10, Math.floor((rightW - gap*(bars-1))/bars));
+
+      for (let i=0;i<bars;i++){
+        const {n, amp} = harmonics[i];
+        const h = amp * (rightH - 10);
+        const x = rightX + i*(barW + gap);
+        const y = rightY + (rightH - h);
+
+        ctx.fillStyle = "rgba(167,255,120,0.78)";
+        ctx.fillRect(x, y, barW, h);
+
+        // Tick + label every harmonic number
+        ctx.globalAlpha = 0.6;
+        ctx.strokeStyle = "rgba(255,255,255,0.35)";
+        ctx.beginPath();
+        ctx.moveTo(x + barW/2, rightY + rightH);
+        ctx.lineTo(x + barW/2, rightY + rightH + 6);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+
+        ctx.fillStyle = "rgba(233,238,252,0.78)";
+        ctx.font = "12px system-ui, sans-serif";
+        const txt = String(n);
+        const tw = ctx.measureText(txt).width;
+        ctx.fillText(txt, x + barW/2 - tw/2, rightY + rightH + 20);
+      }
+    }
+
+    requestAnimationFrame(draw);
+  }
+
+  // ----- Initialize UI defaults (pure sine only) -----
+  function initDefaults(){
+    // set onMap + switch classes
+    waves.forEach(w => {
+      const on = !!DEFAULT_ON[w];
+      onMap.set(w, on);
+      const sw = document.querySelector(`.switch[data-wave="${w}"]`);
+      if (sw) sw.classList.toggle("on", on);
+    });
+
+    // set slider values (sine at 0.25, others at 0)
+    $("gain_sine").value = "0.25";
+    $("gain_square").value = "0.00";
+    $("gain_triangle").value = "0.00";
+    $("gain_sawtooth").value = "0.00";
+
+    // update badge text
+    waves.forEach(w => {
+      const el = $("gain_" + w);
+      $("lvl_" + w).textContent = parseFloat(el.value).toFixed(2);
+    });
+  }
+
+  // init labels + defaults
+  freqVal.textContent = freqEl.value;
+  masterVal.textContent = parseFloat(masterEl.value).toFixed(2);
+  setState(false);
+  initDefaults();
+
+  // start drawing
+  draw();
+
+  // stop on tab hidden
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden && playing) stop();
+  });
+
+  // volume warning
+  masterEl.addEventListener("input", () => {
+    const m = parseFloat(masterEl.value);
+    warnEl.style.display = m > 0.45 ? "block" : "none";
+  });
+})();
+</script>
+</body>
+</html>
