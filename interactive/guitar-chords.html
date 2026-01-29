@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Playable Guitar Chord Shape Finder (Standard Tuning)</title>
+  <style>
+    body { font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; margin: 16px; line-height: 1.25; color:#111; }
+    .wrap { max-width: 1100px; margin: 0 auto; }
+    h1 { margin: 0 0 10px 0; font-size: 22px; }
+    .panel { border: 1px solid #c9d6df; background: #f7fbff; padding: 12px; border-radius: 10px; }
+    label { font-weight: 700; }
+    input, select, button { font: inherit; }
+    input[type="text"] { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #b8c8d3; }
+    .row { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-top: 10px; }
+    .row2 { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-top: 10px; }
+    .small { font-size: 13px; color: #234; }
+    .btns { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+    button { padding: 9px 12px; border-radius: 10px; border: 1px solid #2f6f8f; background: #e9f4fa; cursor: pointer; }
+    button:hover { filter: brightness(0.98); }
+    .results { margin-top: 14px; }
+    .meta { margin: 10px 0 6px; font-weight: 700; }
+    .card { border: 1px solid #d4dde5; border-radius: 12px; padding: 10px 12px; background:#fff; margin: 10px 0; }
+    .cardTop { display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items: baseline; }
+    .mono { font-family: ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace; white-space: pre; }
+    .pill { display:inline-block; padding:2px 8px; border-radius:999px; border:1px solid #b8c8d3; background:#f7fbff; margin-right:6px; }
+    .footer { margin-top: 18px; font-size: 12px; color: #345; text-align: center;}
+    .hint { margin-top: 8px; }
+    .warn { border:1px solid #f0c36d; background:#fff8e6; }
+    .ok { border:1px solid #b9dfc5; background:#f1fff6; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Guitar Chord Shape Finder</h1>
+
+<p class="howto">
+  <strong>How to use this page:</strong><br>
+  To find possible ways of playing a chord or a set of notes on the guitar, simply enter either a chord name in standard
+  notation (for example, <em>Dm</em>, <em>Cmaj7</em>, <em>F#7</em>), or list the individual notes you want to play. The tool will then
+  generate playable chord shapes below.<br><br>
+
+  Please note that this tool assumes your guitar is tuned to the standard <strong>E–A–D–G–B–e</strong> tuning.<br><br>
+
+  The chord shapes are sorted by a <em>score</em> (lower = easier to play). Shapes with lower scores are generally more compact
+  (spanning fewer frets) and involve fewer muted strings (marked as <strong>X</strong>, meaning those strings are not played).<br><br>
+
+  The rest should be self-explanatory—explore and have fun.
+</p>
+
+<style>
+  /* Small-font paragraph styling */
+  .howto{
+    margin: 6px 0 12px;
+    font-size: 13px;
+    color: #234;
+    line-height: 1.35;
+  }
+</style>
+
+  <div class="panel">
+    <label for="query">Enter a chord name OR a list of notes</label>
+    <input id="query" type="text" placeholder="Examples: Dm   Cmaj7   F#7   Bbmaj9   or: C E G B" />
+
+    <div class="row">
+      <div>
+        <label for="maxFret">Max fret</label>
+        <select id="maxFret">
+          <option>7</option>
+          <option selected>12</option>
+          <option>15</option>
+          <option>19</option>
+        </select>
+        <div class="small">Higher = more shapes, slower.</div>
+      </div>
+
+      <div>
+        <label for="maxSpan">Max fret span</label>
+        <select id="maxSpan">
+          <option>3</option>
+          <option selected>4</option>
+          <option>5</option>
+          <option>6</option>
+        </select>
+        <div class="small">MaxFretted - MinFretted</div>
+      </div>
+
+      <div>
+        <label for="maxFretsPressed">Max fretted notes</label>
+        <select id="maxFretsPressed">
+          <option>3</option>
+          <option selected>4</option>
+          <option>5</option>
+          <option>6</option>
+        </select>
+        <div class="small">“Playable” filter.</div>
+      </div>
+
+      <div>
+        <label for="limit">Max results</label>
+        <select id="limit">
+          <option selected>40</option>
+          <option>100</option>
+          <option>200</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="row2">
+      <div>
+        <label for="minStrings">Min sounded strings</label>
+        <select id="minStrings">
+          <option>3</option>
+          <option selected>4</option>
+          <option>5</option>
+          <option>6</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="maxMutes">Max muted strings</label>
+        <select id="maxMutes">
+          <option selected>2</option>
+          <option>1</option>
+          <option>3</option>
+        </select>
+        <div class="small">Prefer fewer mutes.</div>
+      </div>
+
+      <div>
+        <label for="rootBassBias">Prefer root in bass</label>
+        <select id="rootBassBias">
+          <option value="strong" selected>Strong</option>
+          <option value="medium">Medium</option>
+          <option value="off">Off</option>
+        </select>
+        <div class="small">Bias, not a hard rule.</div>
+      </div>
+    </div>
+
+    <div class="row2">
+      <div>
+        <label><input id="allowOpen" type="checkbox" checked /> Allow open strings (0)</label>
+      </div>
+      <div>
+        <label><input id="allowMute" type="checkbox" checked /> Allow muted strings (X)</label>
+      </div>
+      <div>
+        <label><input id="requireAll" type="checkbox" checked /> Require all chord-tones present</label>
+      </div>
+    </div>
+
+    <div class="btns">
+      <button id="go">Find playable shapes</button>
+      <button id="copyAll" disabled>Copy all</button>
+      <button id="download" disabled>Download .txt</button>
+      <button id="example">Load example (Cmaj7)</button>
+    </div>
+
+    <div class="hint small">
+      Chord syntax supported (common): <span class="pill">C</span> <span class="pill">Cm</span> <span class="pill">Cmaj7</span>
+      <span class="pill">C7</span> <span class="pill">Cm7</span> <span class="pill">Cdim</span> <span class="pill">Caug</span>
+      <span class="pill">Csus2</span> <span class="pill">Csus4</span> <span class="pill">C6</span> <span class="pill">C9</span>
+      <span class="pill">Cmaj9</span> <span class="pill">Cadd9</span> <span class="pill">C7b9</span> <span class="pill">C7#9</span>
+      <span class="pill">C7b5</span> <span class="pill">C7#5</span> <span class="pill">C13</span> <span class="pill">Cmaj13</span>
+      <br/>You can still type notes: <span class="pill">C E G B</span> or <span class="pill">Bb D F</span>.
+    </div>
+  </div>
+
+  <div class="results" id="results"></div>
+
+<div class="footer">
+  © <a href="mailto:palpurab@gmail.com?subject=Regarding%20chord%20shape%20finder">Purab Pal</a>, 2026<br>
+  <span class="footer-note">For comments or concerns, click on the name above.</span>
+</div>
+
+
+<script>
+(() => {
+  // ---------- Pitch class helpers ----------
+  const NOTE_TO_PC = {
+    "C":0,"B#":0,
+    "C#":1,"DB":1,
+    "D":2,
+    "D#":3,"EB":3,
+    "E":4,"FB":4,
+    "E#":5,"F":5,
+    "F#":6,"GB":6,
+    "G":7,
+    "G#":8,"AB":8,
+    "A":9,
+    "A#":10,"BB":10,
+    "B":11,"CB":11
+  };
+  const PC_TO_NAME_SHARP = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+
+  function normalizeNoteToken(tok) {
+    let t = tok.trim()
+      .replace(/♯/g, "#")
+      .replace(/♭/g, "b")
+      .replace(/[0-9]/g, "")
+      .toUpperCase();
+    t = t.replace(/([A-G])B$/, "$1B"); // Db -> DB
+    return t;
+  }
+
+  function parseNotesList(input) {
+    const raw = input.split(/[\s,;]+/).filter(Boolean);
+    const pcs = [];
+    const bad = [];
+    for (const r of raw) {
+      const t = normalizeNoteToken(r);
+      if (!t) continue;
+      if (NOTE_TO_PC[t] === undefined) bad.push(r);
+      else pcs.push(NOTE_TO_PC[t]);
+    }
+    return { pcs: [...new Set(pcs)], bad };
+  }
+
+  // ---------- Chord name parsing ----------
+  // Basic grammar:
+  // Root: [A-G] [#|b]?
+  // Quality/extensions/modifiers: a compact string like "maj7", "m7b5", "7#9", "sus4", "add9", "dim", "aug", "6", "9", "13"...
+  //
+  // Returns: {rootPc, pcs:[...], label, warnings:[]}
+  function parseChordName(q) {
+    const warnings = [];
+    const s = q.trim().replace(/\s+/g, "");
+    const m = s.match(/^([A-Ga-g])([#b♯♭]?)(.*)$/);
+    if (!m) return null;
+
+    const rootLetter = m[1].toUpperCase();
+    const acc = (m[2] || "").replace("♯","#").replace("♭","b");
+    const rootKey = (rootLetter + acc).replace(/b$/i, "B").toUpperCase(); // Bb->BB, Db->DB
+    if (NOTE_TO_PC[rootKey] === undefined) return null;
+    const rootPc = NOTE_TO_PC[rootKey];
+
+    let suf = (m[3] || "");
+    if (suf === "") suf = ""; // major triad
+
+    // Normalize common aliases
+    suf = suf.replace(/min/i, "m");
+    suf = suf.replace(/major/i, "maj");
+    suf = suf.replace(/minor/i, "m");
+
+    // Detect "mMaj7" style? normalize to "mmaj7"
+    suf = suf.replace(/mMaj/i, "mmaj");
+
+    // Utilities
+    const addInterval = (set, semis) => set.add((rootPc + semis) % 12);
+
+    // Base triad
+    const pcsSet = new Set([rootPc]);
+    let triad = "maj"; // default
+    // Determine triad from suffix tokens (order matters)
+    // dim, aug, sus2, sus4, m, maj (explicit), etc.
+    // We'll strip triad tokens from suf as we handle them.
+    if (/^dim/.test(suf) || /^o/.test(suf)) {
+      triad = "dim";
+      suf = suf.replace(/^dim/, "").replace(/^o/, "");
+    } else if (/^aug/.test(suf) || /^\+/.test(suf)) {
+      triad = "aug";
+      suf = suf.replace(/^aug/, "").replace(/^\+/, "");
+    } else if (/^sus2/.test(suf)) {
+      triad = "sus2";
+      suf = suf.replace(/^sus2/, "");
+    } else if (/^sus4/.test(suf) || /^sus/.test(suf)) {
+      triad = "sus4";
+      suf = suf.replace(/^sus4/, "").replace(/^sus/, "");
+    } else if (/^m(?!aj)/.test(suf)) {
+      triad = "min";
+      suf = suf.replace(/^m/, "");
+    } else if (/^maj/.test(suf)) {
+      triad = "maj";
+      suf = suf.replace(/^maj/, "");
+    } else if (/^M/.test(suf)) {
+      triad = "maj";
+      suf = suf.replace(/^M/, "");
+    }
+
+    // Add triad tones
+    if (triad === "maj") { addInterval(pcsSet, 4); addInterval(pcsSet, 7); }
+    if (triad === "min") { addInterval(pcsSet, 3); addInterval(pcsSet, 7); }
+    if (triad === "dim") { addInterval(pcsSet, 3); addInterval(pcsSet, 6); }
+    if (triad === "aug") { addInterval(pcsSet, 4); addInterval(pcsSet, 8); }
+    if (triad === "sus2") { addInterval(pcsSet, 2); addInterval(pcsSet, 7); }
+    if (triad === "sus4") { addInterval(pcsSet, 5); addInterval(pcsSet, 7); }
+
+    // Handle "addX"
+    const addMatch = suf.match(/add(2|4|6|9|11|13)/);
+    if (addMatch) {
+      const n = Number(addMatch[1]);
+      // Map add9->2, add11->5, add13->9 (compound)
+      const semis = (n === 2) ? 2 : (n === 4) ? 5 : (n === 6) ? 9
+                  : (n === 9) ? 2 : (n === 11) ? 5 : (n === 13) ? 9 : null;
+      if (semis !== null) addInterval(pcsSet, semis);
+      suf = suf.replace(addMatch[0], "");
+    }
+
+    // Extension numbers: 6,7,9,11,13 (and maj versions if triad wasn't explicit)
+    // By convention:
+    // - "7" => minor7 (10)
+    // - "maj7" handled earlier if it remained in suf; but we stripped "maj" if it led.
+    // So: if suffix begins with "maj7" or "maj9" etc (after triad stripping) we handle:
+    if (/^maj(7|9|11|13)/.test(suf)) {
+      const n = Number(suf.match(/^maj(7|9|11|13)/)[1]);
+      addInterval(pcsSet, 11); // maj7
+      if (n >= 9) addInterval(pcsSet, 2); // 9
+      if (n >= 11) addInterval(pcsSet, 5); // 11
+      if (n >= 13) addInterval(pcsSet, 9); // 13
+      suf = suf.replace(/^maj(7|9|11|13)/, "");
+    } else {
+      const ext = suf.match(/^(6|7|9|11|13)/);
+      if (ext) {
+        const n = Number(ext[1]);
+        if (n === 6) addInterval(pcsSet, 9);
+        if (n >= 7) addInterval(pcsSet, 10); // b7
+        if (n >= 9) addInterval(pcsSet, 2);
+        if (n >= 11) addInterval(pcsSet, 5);
+        if (n >= 13) addInterval(pcsSet, 9);
+        suf = suf.replace(/^(6|7|9|11|13)/, "");
+      }
+    }
+
+    // Half-diminished "m7b5" pattern (common). If user typed that, triad was min, ext added b7, and we should flatten 5th.
+    // We'll process alterations generally: b5/#5/b9/#9/b11/#11/b13/#13
+    const altRE = /(b|#)(5|9|11|13)/g;
+    let alt;
+    while ((alt = altRE.exec(suf)) !== null) {
+      const sign = alt[1];
+      const deg = Number(alt[2]);
+      const baseSemi = (deg === 5) ? 7 : (deg === 9) ? 2 : (deg === 11) ? 5 : (deg === 13) ? 9 : null;
+      if (baseSemi === null) continue;
+      const semis = sign === "b" ? (baseSemi - 1) : (baseSemi + 1);
+      // Remove unaltered degree if already present
+      pcsSet.delete((rootPc + baseSemi) % 12);
+      addInterval(pcsSet, (semis + 12) % 12);
+    }
+    suf = suf.replace(altRE, "");
+
+    // "mmaj7" (minor triad + maj7)
+    if (/^mmaj7/.test(suf)) {
+      // if triad wasn't min already, add min 3rd
+      pcsSet.delete((rootPc + 4) % 12);
+      addInterval(pcsSet, 3);
+      addInterval(pcsSet, 11);
+      suf = suf.replace(/^mmaj7/, "");
+    }
+
+    // If anything left that we don't understand, warn but still proceed.
+    if (suf.length) warnings.push(`Unparsed suffix part: "${suf}"`);
+
+    return {
+      rootPc,
+      pcs: [...pcsSet],
+      label: q.trim(),
+      warnings
+    };
+  }
+
+  function parseQuery(query) {
+    // Decide: chord name vs notes list
+    // If it contains a space/comma/semicolon, treat as notes list.
+    // Else try chord parsing first; fallback to note parsing.
+    const q = query.trim();
+    if (!q) return { error: "Please enter a chord name or notes." };
+
+    const isNoteList = /[,\s;]/.test(q);
+    if (isNoteList) {
+      const { pcs, bad } = parseNotesList(q);
+      if (bad.length) return { error: `Could not parse: ${bad.join(", ")}` };
+      if (!pcs.length) return { error: "No valid notes found." };
+      return { mode: "notes", pcs, rootPc: null, label: pcs.map(pc=>PC_TO_NAME_SHARP[pc]).join(" ") };
+    }
+
+    const chord = parseChordName(q);
+    if (chord) return { mode: "chord", pcs: chord.pcs, rootPc: chord.rootPc, label: chord.label, warnings: chord.warnings };
+
+    // fallback: single note?
+    const { pcs, bad } = parseNotesList(q);
+    if (bad.length) return { error: `Could not parse: ${bad.join(", ")}` };
+    if (!pcs.length) return { error: "No valid chord/notes found." };
+    return { mode: "notes", pcs, rootPc: null, label: pcs.map(pc=>PC_TO_NAME_SHARP[pc]).join(" ") };
+  }
+
+  // ---------- Guitar setup ----------
+  // Standard tuning from low to high (string 6 to 1): E A D G B E
+  const TUNING_PC = [4, 9, 2, 7, 11, 4];
+  const TAB_NAMES = ["e", "B", "G", "D", "A", "E"]; // top to bottom in tab
+
+  const fretToPc = (openPc, fret) => (openPc + fret) % 12;
+
+  // ---------- "Playable" heuristics ----------
+  function analyzeShape(shape) {
+    // shape: array length 6 for strings 6..1
+    const fretted = shape.filter(x => x.fret > 0).map(x => x.fret);
+    const muted = shape.filter(x => x.fret === -1).length;
+    const sounded = shape.filter(x => x.fret >= 0).length;
+
+    const minF = fretted.length ? Math.min(...fretted) : 0;
+    const maxF = fretted.length ? Math.max(...fretted) : 0;
+    const span = fretted.length ? (maxF - minF) : 0;
+
+    // Barre detection (simple): if >=2 strings use the same fret (>=1), count it as a barre candidate.
+    const freq = new Map();
+    for (const f of fretted) freq.set(f, (freq.get(f) || 0) + 1);
+    let bestBarreFret = null, bestBarreCount = 0;
+    for (const [f,c] of freq.entries()) {
+      if (c >= 2 && c > bestBarreCount) { bestBarreCount = c; bestBarreFret = f; }
+    }
+    const barre = bestBarreCount >= 2 ? { fret: bestBarreFret, strings: bestBarreCount } : null;
+
+    // Fret stretch heuristic:
+    // - Penalize having both very low and very high frets without barre
+    // - Penalize isolated "high finger" far from cluster
+    let stretchPenalty = 0;
+    if (fretted.length) {
+      // cluster around median
+      const sorted = [...fretted].sort((a,b)=>a-b);
+      const mid = sorted[Math.floor(sorted.length/2)];
+      for (const f of fretted) stretchPenalty += Math.max(0, Math.abs(f - mid) - 2);
+      if (!barre && span >= 5) stretchPenalty += 4;
+    }
+
+    // Left-hand complexity:
+    // If many distinct frets and no barre -> harder
+    const distinctFrets = new Set(fretted).size;
+    let complexity = distinctFrets;
+    if (barre) complexity = Math.max(1, distinctFrets - 1);
+
+    return { muted, sounded, minF, maxF, span, barre, stretchPenalty, complexity };
+  }
+
+  // Prefer common voicings:
+  // - root in bass (lowest sounded string)
+  // - fewer mutes
+  // - more strings sounded (up to 6)
+  // - lower positions, smaller spans
+  // - fewer distinct frets (or barre-friendly)
+  function scoreShape(shape, targetSet, rootPc, bias) {
+    const a = analyzeShape(shape);
+
+    // Determine bass note pc
+    let bassPc = null;
+    for (let s = 0; s < 6; s++) { // string 6 to 1
+      if (shape[s].fret >= 0) { bassPc = shape[s].pc; break; }
+    }
+
+    let rootBonus = 0;
+    if (rootPc !== null && bassPc !== null && bassPc === rootPc) {
+      rootBonus = (bias === "strong") ? 10 : (bias === "medium") ? 6 : 0;
+    }
+
+    // Missing tones penalty if requireAll is off (we still prefer more chord tones)
+    const pcsHere = new Set();
+    for (const x of shape) if (x.pc !== null) pcsHere.add(x.pc);
+    let missing = 0;
+    for (const pc of targetSet) if (!pcsHere.has(pc)) missing++;
+    const missingPenalty = missing * 10; // strong preference
+
+    // Penalize extra "duplication" slightly (not too strong)
+    const duplicates = shape.filter(x => x.pc !== null).length - pcsHere.size;
+    const dupPenalty = Math.max(0, duplicates - 1);
+
+    // Lower is better score
+    const positionPenalty = a.maxF * 2 + a.span * 3;
+    const mutePenalty = a.muted * 4;
+    const soundBonus = (6 - a.sounded) * 2; // fewer strings sounded -> worse
+    const barreBonus = a.barre ? -3 * Math.min(3, a.barre.strings - 1) : 0; // small bonus
+    const complexityPenalty = a.complexity * 2 + a.stretchPenalty * 3 + dupPenalty;
+
+    return (
+      positionPenalty +
+      mutePenalty +
+      soundBonus +
+      complexityPenalty +
+      missingPenalty -
+      rootBonus +
+      barreBonus
+    );
+  }
+
+  // ---------- Search ----------
+  function findPlayableShapes(targetPCs, opts) {
+    const targetSet = new Set(targetPCs);
+
+    // Candidates per string (6..1)
+    const candidates = [];
+    for (let s = 0; s < 6; s++) {
+      const openPc = TUNING_PC[s];
+      const arr = [];
+      if (opts.allowMute) arr.push({ fret: -1, pc: null, label: "X" });
+
+      if (opts.allowOpen) {
+        const pc0 = fretToPc(openPc, 0);
+        if (targetSet.has(pc0)) arr.push({ fret: 0, pc: pc0, label: "0" });
+      }
+
+      for (let f = 1; f <= opts.maxFret; f++) {
+        const pc = fretToPc(openPc, f);
+        if (targetSet.has(pc)) arr.push({ fret: f, pc, label: String(f) });
+      }
+      candidates.push(arr);
+    }
+
+    const results = [];
+    const chosen = new Array(6);
+
+    function partialPrune(i) {
+      // Prune by span and max fretted notes early.
+      const partial = chosen.slice(0, i + 1).filter(Boolean);
+      const fretted = partial.filter(x => x.fret > 0).map(x => x.fret);
+      if (fretted.length > opts.maxFretsPressed) return true;
+
+      if (fretted.length) {
+        const span = Math.max(...fretted) - Math.min(...fretted);
+        if (span > opts.maxSpan) return true;
+      }
+
+      // Prune if too many mutes already
+      const mutes = partial.filter(x => x.fret === -1).length;
+      if (mutes > opts.maxMutes) return true;
+
+      return false;
+    }
+
+    function dfs(i) {
+      if (results.length >= opts.limit * 6) return; // oversample then sort
+      if (i === 6) {
+        const shape = chosen.slice();
+
+        const mutes = shape.filter(x => x.fret === -1).length;
+        const sounded = shape.filter(x => x.fret >= 0).length;
+        const frettedCount = shape.filter(x => x.fret > 0).length;
+
+        if (mutes > opts.maxMutes) return;
+        if (sounded < opts.minStrings) return;
+        if (frettedCount > opts.maxFretsPressed) return;
+
+        // Require all chord tones?
+        const pcsHere = new Set();
+        for (const x of shape) if (x.pc !== null) pcsHere.add(x.pc);
+
+        if (opts.requireAll) {
+          for (const pc of targetSet) if (!pcsHere.has(pc)) return;
+        } else {
+          // still must have at least two chord tones for "shape"
+          if (pcsHere.size < Math.min(2, targetSet.size)) return;
+        }
+
+        // Avoid huge stretch beyond span rule via extra heuristic:
+        const a = analyzeShape(shape);
+        if (a.stretchPenalty >= 6) return; // "avoid huge stretches"
+        // If very high up (say > 15) with many mutes, likely unhelpful
+        if (a.maxF >= 15 && mutes >= 3) return;
+
+        results.push(shape);
+        return;
+      }
+
+      for (const c of candidates[i]) {
+        chosen[i] = c;
+        if (partialPrune(i)) continue;
+        dfs(i + 1);
+      }
+    }
+
+    dfs(0);
+
+    // Score, sort, and dedupe
+    const scored = results.map(shape => ({
+      shape,
+      score: scoreShape(shape, targetSet, opts.rootPc, opts.rootBassBias),
+      analysis: analyzeShape(shape)
+    }));
+
+    scored.sort((a,b) => a.score - b.score);
+
+    const seen = new Set();
+    const final = [];
+    for (const s of scored) {
+      const key = s.shape.map(x => x.label).join("-");
+      if (seen.has(key)) continue;
+      seen.add(key);
+      final.push(s);
+      if (final.length >= opts.limit) break;
+    }
+    return final;
+  }
+
+  // ---------- Rendering ----------
+  function shapeToTab(shape) {
+    // shape indexed 6..1. Render tab top->bottom e B G D A E
+    const labels = shape.map(x => x.label);       // 6..1
+    const notes  = shape.map(x => x.pc === null ? "—" : PC_TO_NAME_SHARP[x.pc]);
+
+    const revLabels = [...labels].reverse(); // 1..6 for tab
+    const revNotes  = [...notes].reverse();
+
+    const lines = [];
+    for (let i = 0; i < 6; i++) {
+      const lab = revLabels[i];
+      lines.push(`${TAB_NAMES[i]}|--${lab}--|   ${revNotes[i]}`);
+    }
+
+    return { chordText: labels.join(" "), tab: lines.join("\n") };
+  }
+
+  function renderResults(parsed, res, opts) {
+    const out = document.getElementById("results");
+    out.innerHTML = "";
+
+    const notePills = parsed.pcs.map(pc => `<span class="pill">${PC_TO_NAME_SHARP[pc]}</span>`).join("");
+    const meta = document.createElement("div");
+    meta.className = "meta";
+    meta.innerHTML = `Input: <span class="pill">${escapeHtml(parsed.label)}</span> &nbsp;|&nbsp; Target tones: ${notePills} &nbsp;|&nbsp; Found ${res.length} playable shape(s)`;
+    out.appendChild(meta);
+
+    if (parsed.warnings && parsed.warnings.length) {
+      const w = document.createElement("div");
+      w.className = "card warn";
+      w.innerHTML = `<strong>Note:</strong> ${parsed.warnings.map(escapeHtml).join(" • ")}`;
+      out.appendChild(w);
+    }
+
+    const allTextLines = [];
+    res.forEach((item, idx) => {
+      const { shape, score, analysis } = item;
+      const { chordText, tab } = shapeToTab(shape);
+
+      const pcsHere = new Set();
+      for (const x of shape) if (x.pc !== null) pcsHere.add(x.pc);
+
+      const aPills = [];
+      if (analysis.barre) aPills.push(`<span class="pill">barre ~ fret ${analysis.barre.fret} (${analysis.barre.strings} strings)</span>`);
+      aPills.push(`<span class="pill">span ${analysis.span}</span>`);
+      aPills.push(`<span class="pill">mutes ${analysis.muted}</span>`);
+      aPills.push(`<span class="pill">fretted ${shape.filter(x=>x.fret>0).length}</span>`);
+
+      const card = document.createElement("div");
+      card.className = "card";
+
+      const top = document.createElement("div");
+      top.className = "cardTop";
+      top.innerHTML = `
+        <div>
+          <strong>#${idx + 1}</strong>
+          <span class="pill">${chordText}</span>
+          ${aPills.join(" ")}
+        </div>
+        <div class="small">Notes used: ${[...pcsHere].map(pc => PC_TO_NAME_SHARP[pc]).join(", ")} &nbsp;|&nbsp; score: ${score.toFixed(1)}</div>
+      `;
+
+      const pre = document.createElement("div");
+      pre.className = "mono";
+      pre.textContent = tab;
+
+      const btnRow = document.createElement("div");
+      btnRow.className = "btns";
+      const b = document.createElement("button");
+      b.textContent = "Copy this shape";
+      b.addEventListener("click", async () => {
+        const txt = `Input: ${parsed.label}\nShape (6→1): ${chordText}\n${tab}\n`;
+        await navigator.clipboard.writeText(txt);
+        b.textContent = "Copied!";
+        setTimeout(() => (b.textContent = "Copy this shape"), 800);
+      });
+      btnRow.appendChild(b);
+
+      card.appendChild(top);
+      card.appendChild(pre);
+      card.appendChild(btnRow);
+      out.appendChild(card);
+
+      allTextLines.push(`## ${idx + 1}\nInput: ${parsed.label}\nShape (6→1): ${chordText}\n${tab}\n`);
+    });
+
+    window.__ALL_RESULTS_TEXT__ =
+      `Playable Guitar Chord Shape Finder (Standard Tuning)\nInput: ${parsed.label}\nTarget: ${parsed.pcs.map(pc => PC_TO_NAME_SHARP[pc]).join(" ")}\n\n` +
+      allTextLines.join("\n");
+
+    document.getElementById("copyAll").disabled = res.length === 0;
+    document.getElementById("download").disabled = res.length === 0;
+
+    if (res.length === 0) {
+      const none = document.createElement("div");
+      none.className = "card";
+      none.innerHTML = `<strong>No playable shapes found</strong><br/>
+        <span class="small">Try increasing max fret/span, allowing open strings, raising max fretted notes, or allowing more mutes.</span>`;
+      out.appendChild(none);
+    }
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+  }
+
+  // ---------- UI ----------
+  const $ = (id) => document.getElementById(id);
+
+  function run() {
+    const parsed = parseQuery($("query").value);
+    const out = $("results");
+    out.innerHTML = "";
+
+    if (parsed.error) {
+      out.innerHTML = `<div class="card warn"><strong>${escapeHtml(parsed.error)}</strong></div>`;
+      return;
+    }
+
+    const opts = {
+      maxFret: Number($("maxFret").value),
+      maxSpan: Number($("maxSpan").value),
+      maxFretsPressed: Number($("maxFretsPressed").value),
+      limit: Number($("limit").value),
+      minStrings: Number($("minStrings").value),
+      maxMutes: Number($("maxMutes").value),
+      rootBassBias: $("rootBassBias").value,
+      allowOpen: $("allowOpen").checked,
+      allowMute: $("allowMute").checked,
+      requireAll: $("requireAll").checked,
+      rootPc: parsed.rootPc
+    };
+
+    const res = findPlayableShapes(parsed.pcs, opts);
+    renderResults(parsed, res, opts);
+  }
+
+  $("go").addEventListener("click", run);
+  $("example").addEventListener("click", () => { $("query").value = "Cmaj7"; run(); });
+
+  $("copyAll").addEventListener("click", async () => {
+    await navigator.clipboard.writeText(window.__ALL_RESULTS_TEXT__ || "");
+    $("copyAll").textContent = "Copied!";
+    setTimeout(() => ($("copyAll").textContent = "Copy all"), 900);
+  });
+
+  $("download").addEventListener("click", () => {
+    const text = window.__ALL_RESULTS_TEXT__ || "";
+    const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "playable-guitar-chord-shapes.txt";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  });
+})();
+</script>
+</body>
+</html>

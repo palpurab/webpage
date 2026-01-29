@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Chord Finder</title>
+  <style>
+    body{
+      font-family: Arial, Helvetica, sans-serif;
+      margin: 16px;
+      line-height: 1.35;
+      color:#111;
+    }
+    .wrap{max-width: 1200px; margin: 0 auto;}
+    h1{
+      margin: 0 0 8px 0;
+      font-size: 2.4rem; /* bigger title */
+      font-weight: 700;
+    }
+    .sub{
+      margin: 0 0 14px 0;
+      color:#444;
+      font-size: 0.95rem;
+    }
+    .controls{
+      display:flex; gap:10px; flex-wrap:wrap; align-items:center;
+      margin: 10px 0 12px 0;
+    }
+    input[type="text"]{
+      flex: 1 1 360px;
+      padding: 10px 12px;
+      border: 1px solid #aaa;
+      border-radius: 6px;
+      font-size: 1rem;
+    }
+    .pill{
+      border: 1px solid #bbb;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 0.9rem;
+      background:#f6f6f6;
+    }
+    table{
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 6px;
+    }
+    th, td{
+      border: 1px solid #bbb;
+      padding: 8px 10px;
+      vertical-align: top;
+    }
+    th{
+      background:#f3f3f3;
+      text-align:left;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    td code{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 0.95em;
+      white-space: nowrap;
+    }
+    .no-results{
+      margin-top: 10px;
+      padding: 10px 12px;
+      border: 1px dashed #999;
+      border-radius: 8px;
+      display:none;
+    }
+    footer{
+      margin-top: 28px;
+      text-align: center;
+      font-size: 0.9rem;
+      color:#333;
+    }
+    footer a{
+      color:#333;
+      text-decoration:none;
+      font-weight:600;
+    }
+    footer a:hover{
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Chord Finder</h1>
+    <p class="sub">
+      Notes are spelled as if the chord root is <b>C</b>.
+    </p>
+
+    <div class="controls">
+      <input id="search" type="text" placeholder="Search (e.g., m7b5, Maj7#11, 7alt, sus, add9, dim7, 13b9, 6/9)…" aria-label="Search chords" />
+      <span class="pill"><span id="countShown">0</span>/<span id="countAll">0</span> shown</span>
+    </div>
+
+    <div id="noResults" class="no-results">No matching chords.</div>
+
+    <table aria-label="Chord shapes table">
+      <thead>
+        <tr>
+          <th style="width: 26%;">Chord name</th>
+          <th style="width: 14%;">Notation</th>
+          <th style="width: 22%;">Formula</th>
+          <th>Notes (relative to C as root)</th>
+        </tr>
+      </thead>
+      <tbody id="tbody">
+                <!-- TRIADS / BASICS -->
+        <tr><td>Major</td><td><code>Maj</code></td><td><code>1-3-5</code></td><td><code>C-E-G</code></td></tr>
+        <tr><td>Minor</td><td><code>m</code></td><td><code>1-b3-5</code></td><td><code>C-E♭-G</code></td></tr>
+        <tr><td>Diminished triad</td><td><code>dim</code></td><td><code>1-b3-b5</code></td><td><code>C-E♭-G♭</code></td></tr>
+        <tr><td>Augmented triad</td><td><code>aug</code> / <code>+</code></td><td><code>1-3-#5</code></td><td><code>C-E-G♯</code></td></tr>
+        <tr><td>Power chord</td><td><code>5</code></td><td><code>1-5</code></td><td><code>C-G</code></td></tr>
+
+        <!-- SUSPENSIONS / ADDS -->
+        <tr><td>Suspended second</td><td><code>sus2</code></td><td><code>1-2-5</code></td><td><code>C-D-G</code></td></tr>
+        <tr><td>Suspended fourth</td><td><code>sus4</code></td><td><code>1-4-5</code></td><td><code>C-F-G</code></td></tr>
+        <tr><td>Add nine</td><td><code>add9</code></td><td><code>1-3-5-9</code></td><td><code>C-E-G-D</code></td></tr>
+        <tr><td>Minor add nine</td><td><code>m(add9)</code></td><td><code>1-b3-5-9</code></td><td><code>C-E♭-G-D</code></td></tr>
+        <tr><td>Add eleven</td><td><code>add11</code></td><td><code>1-3-5-11</code></td><td><code>C-E-G-F</code></td></tr>
+        <tr><td>Six / nine</td><td><code>6/9</code></td><td><code>1-3-5-6-9</code></td><td><code>C-E-G-A-D</code></td></tr>
+
+        <!-- SIXTH CHORDS -->
+        <tr><td>Major sixth</td><td><code>6</code></td><td><code>1-3-5-6</code></td><td><code>C-E-G-A</code></td></tr>
+        <tr><td>Minor sixth</td><td><code>m6</code></td><td><code>1-b3-5-6</code></td><td><code>C-E♭-G-A</code></td></tr>
+
+        <!-- SEVENTHS -->
+        <tr><td>Dominant seventh</td><td><code>7</code></td><td><code>1-3-5-b7</code></td><td><code>C-E-G-B♭</code></td></tr>
+        <tr><td>Major seventh</td><td><code>Maj7</code> / <code>M7</code> / <code>Δ7</code></td><td><code>1-3-5-7</code></td><td><code>C-E-G-B</code></td></tr>
+        <tr><td>Minor seventh</td><td><code>m7</code></td><td><code>1-b3-5-b7</code></td><td><code>C-E♭-G-B♭</code></td></tr>
+        <tr><td>Minor major seventh</td><td><code>mMaj7</code> / <code>mM7</code></td><td><code>1-b3-5-7</code></td><td><code>C-E♭-G-B</code></td></tr>
+        <tr><td>Half-diminished seventh</td><td><code>m7♭5</code> / <code>ø7</code></td><td><code>1-b3-b5-b7</code></td><td><code>C-E♭-G♭-B♭</code></td></tr>
+        <tr><td>Diminished seventh</td><td><code>dim7</code> / <code>°7</code></td><td><code>1-b3-b5-bb7</code></td><td><code>C-E♭-G♭-A</code></td></tr>
+
+        <!-- DOMINANT VARIANTS -->
+        <tr><td>Seventh suspended fourth</td><td><code>7sus4</code></td><td><code>1-4-5-b7</code></td><td><code>C-F-G-B♭</code></td></tr>
+        <tr><td>Seventh suspended second</td><td><code>7sus2</code></td><td><code>1-2-5-b7</code></td><td><code>C-D-G-B♭</code></td></tr>
+        <tr><td>Seventh flat five</td><td><code>7♭5</code></td><td><code>1-3-b5-b7</code></td><td><code>C-E-G♭-B♭</code></td></tr>
+        <tr><td>Seventh sharp five</td><td><code>7♯5</code> / <code>7+</code></td><td><code>1-3-#5-b7</code></td><td><code>C-E-G♯-B♭</code></td></tr>
+        <tr><td>Seventh flat nine</td><td><code>7♭9</code></td><td><code>1-3-5-b7-b9</code></td><td><code>C-E-G-B♭-D♭</code></td></tr>
+        <tr><td>Seventh sharp nine</td><td><code>7♯9</code></td><td><code>1-3-5-b7-#9</code></td><td><code>C-E-G-B♭-D♯</code></td></tr>
+        <tr><td>Seventh flat five flat nine</td><td><code>7♭5♭9</code></td><td><code>1-3-b5-b7-b9</code></td><td><code>C-E-G♭-B♭-D♭</code></td></tr>
+        <tr><td>Seventh sharp five flat nine</td><td><code>7♯5♭9</code></td><td><code>1-3-#5-b7-b9</code></td><td><code>C-E-G♯-B♭-D♭</code></td></tr>
+        <tr><td>Seventh flat thirteen</td><td><code>7♭13</code></td><td><code>1-3-5-b7-b13</code></td><td><code>C-E-G-B♭-A♭</code></td></tr>
+        <tr><td>Seventh sharp eleven</td><td><code>7♯11</code></td><td><code>1-3-5-b7-#11</code></td><td><code>C-E-G-B♭-F♯</code></td></tr>
+
+        <!-- "ALT" / ALTERED DOMINANT (COMMON JAZZ SYMBOL) -->
+        <tr><td>Altered dominant (common set)</td><td><code>7alt</code></td>
+            <td><code>1-3-b7-(♭9/♯9)-(♭5/♯5)</code></td>
+            <td><code>C-E-B♭-(D♭/D♯)-(G♭/G♯)</code></td></tr>
+
+        <!-- NINTHS -->
+        <tr><td>Dominant ninth</td><td><code>9</code></td><td><code>1-3-5-b7-9</code></td><td><code>C-E-G-B♭-D</code></td></tr>
+        <tr><td>Major ninth</td><td><code>Maj9</code> / <code>M9</code></td><td><code>1-3-5-7-9</code></td><td><code>C-E-G-B-D</code></td></tr>
+        <tr><td>Minor ninth</td><td><code>m9</code></td><td><code>1-b3-5-b7-9</code></td><td><code>C-E♭-G-B♭-D</code></td></tr>
+        <tr><td>Dominant ninth flat five</td><td><code>9♭5</code></td><td><code>1-3-b5-b7-9</code></td><td><code>C-E-G♭-B♭-D</code></td></tr>
+        <tr><td>Dominant ninth sharp five</td><td><code>9♯5</code></td><td><code>1-3-#5-b7-9</code></td><td><code>C-E-G♯-B♭-D</code></td></tr>
+        <tr><td>Dominant seventh flat nine (no 5)</td><td><code>7♭9(no5)</code></td><td><code>1-3-b7-b9</code></td><td><code>C-E-B♭-D♭</code></td></tr>
+        <tr><td>Dominant seventh sharp nine (no 5)</td><td><code>7♯9(no5)</code></td><td><code>1-3-b7-#9</code></td><td><code>C-E-B♭-D♯</code></td></tr>
+
+        <!-- ELEVENTHS -->
+        <tr><td>Dominant eleventh</td><td><code>11</code></td><td><code>1-3-5-b7-9-11</code></td><td><code>C-E-G-B♭-D-F</code></td></tr>
+        <tr><td>Major eleventh</td><td><code>Maj11</code> / <code>M11</code></td><td><code>1-3-5-7-9-11</code></td><td><code>C-E-G-B-D-F</code></td></tr>
+        <tr><td>Minor eleventh</td><td><code>m11</code></td><td><code>1-b3-5-b7-9-11</code></td><td><code>C-E♭-G-B♭-D-F</code></td></tr>
+        <tr><td>Dominant eleventh sharp eleven</td><td><code>11♯11</code></td><td><code>1-3-5-b7-9-11-#11</code></td><td><code>C-E-G-B♭-D-F-F♯</code></td></tr>
+
+        <!-- THIRTEENTHS -->
+        <tr><td>Dominant thirteenth</td><td><code>13</code></td><td><code>1-3-5-b7-9-11-13</code></td><td><code>C-E-G-B♭-D-F-A</code></td></tr>
+        <tr><td>Major thirteenth</td><td><code>Maj13</code> / <code>M13</code></td><td><code>1-3-5-7-9-11-13</code></td><td><code>C-E-G-B-D-F-A</code></td></tr>
+        <tr><td>Minor thirteenth</td><td><code>m13</code></td><td><code>1-b3-5-b7-9-11-13</code></td><td><code>C-E♭-G-B♭-D-F-A</code></td></tr>
+
+        <!-- COMMON "SHELL" / OMITTED NOTES (VERY POP/JAZZ PRACTICE) -->
+        <tr><td>Dominant shell (3 &amp; b7)</td><td><code>7(shell)</code></td><td><code>3-b7</code></td><td><code>E-B♭</code></td></tr>
+        <tr><td>Minor shell (b3 &amp; b7)</td><td><code>m7(shell)</code></td><td><code>b3-b7</code></td><td><code>E♭-B♭</code></td></tr>
+        <tr><td>Major shell (3 &amp; 7)</td><td><code>Maj7(shell)</code></td><td><code>3-7</code></td><td><code>E-B</code></td></tr>
+
+        <!-- COMMON TENSIONS IN SYMBOLS -->
+        <tr><td>Major seventh sharp eleven</td><td><code>Maj7♯11</code> / <code>Δ7♯11</code></td><td><code>1-3-5-7-#11</code></td><td><code>C-E-G-B-F♯</code></td></tr>
+        <tr><td>Major ninth sharp eleven</td><td><code>Maj9♯11</code></td><td><code>1-3-5-7-9-#11</code></td><td><code>C-E-G-B-D-F♯</code></td></tr>
+        <tr><td>Dominant ninth sharp eleven</td><td><code>9♯11</code></td><td><code>1-3-5-b7-9-#11</code></td><td><code>C-E-G-B♭-D-F♯</code></td></tr>
+        <tr><td>Dominant ninth flat thirteen</td><td><code>9♭13</code></td><td><code>1-3-5-b7-9-b13</code></td><td><code>C-E-G-B♭-D-A♭</code></td></tr>
+        <tr><td>Dominant thirteenth flat nine</td><td><code>13♭9</code></td><td><code>1-3-5-b7-9-11-13</code> + <code>♭9</code></td><td><code>C-E-G-B♭-D♭-F-A</code></td></tr>
+        <tr><td>Dominant thirteenth sharp nine</td><td><code>13♯9</code></td><td><code>1-3-5-b7-9-11-13</code> + <code>♯9</code></td><td><code>C-E-G-B♭-D♯-F-A</code></td></tr>
+        <tr><td>Dominant thirteenth flat nine flat thirteen</td><td><code>13♭9♭13</code></td><td><code>1-3-5-b7-b9-11-b13</code></td><td><code>C-E-G-B♭-D♭-F-A♭</code></td></tr>
+
+        <!-- SLASH / POLY-ish POP/JAZZ -->
+        <tr><td>Major over major (slash example)</td><td><code>C/E</code> (example)</td><td><code>(C major) over E bass</code></td><td><code>(Chord: C-E-G) | Bass: E</code></td></tr>
+        <tr><td>Minor over major (slash example)</td><td><code>Cm/E♭</code> (example)</td><td><code>(C minor) over E♭ bass</code></td><td><code>(Chord: C-E♭-G) | Bass: E♭</code></td></tr>
+
+        <!-- VERY COMMON POP/JAZZ EXTENSIONS AS "NO 3" / "NO 5" -->
+        <tr><td>Dominant ninth (no 3)</td><td><code>9(no3)</code></td><td><code>1-5-b7-9</code></td><td><code>C-G-B♭-D</code></td></tr>
+        <tr><td>Dominant thirteenth (no 11)</td><td><code>13(no11)</code></td><td><code>1-3-5-b7-9-13</code></td><td><code>C-E-G-B♭-D-A</code></td></tr>
+
+        <!-- QUARTAL / "SO WHAT" (VERY COMMON JAZZ SONORITY) -->
+        <tr><td>Quartal stack (So What voicing idea)</td><td><code>quartal</code></td><td><code>1-4-b7-#11</code> (one common set)</td><td><code>C-F-B♭-F♯</code></td></tr>
+
+        <!-- "ALTERED TENSION" SHORT-HAND -->
+        <tr><td>Dominant with flat nine and sharp five</td><td><code>7(♭9,♯5)</code></td><td><code>1-3-#5-b7-b9</code></td><td><code>C-E-G♯-B♭-D♭</code></td></tr>
+        <tr><td>Dominant with sharp nine and flat five</td><td><code>7(♯9,♭5)</code></td><td><code>1-3-b5-b7-#9</code></td><td><code>C-E-G♭-B♭-D♯</code></td></tr>
+      </tbody>
+    </table>
+
+    <footer>
+      <div>
+        © <a href="mailto:palpurab@gmail.com?subject=Regarding%20Chords">Purab Pal</a>, 2026
+      </div>
+      <div>
+        For comments or concerns, click on the name above.
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    (function () {
+      const search = document.getElementById('search');
+      const tbody = document.getElementById('tbody');
+      const rows = Array.from(tbody.querySelectorAll('tr'));
+      const noResults = document.getElementById('noResults');
+      const countShown = document.getElementById('countShown');
+      const countAll = document.getElementById('countAll');
+
+      const index = rows.map(tr => {
+        const text = tr.innerText.toLowerCase().replace(/\s+/g, ' ').trim();
+        return { tr, text };
+      });
+
+      countAll.textContent = String(rows.length);
+
+      function applyFilter(q){
+        const query = q.toLowerCase().trim().replace(/\s+/g, ' ');
+        let shown = 0;
+
+        for(const item of index){
+          const ok = query === "" || item.text.includes(query);
+          item.tr.style.display = ok ? "" : "none";
+          if(ok) shown++;
+        }
+
+        countShown.textContent = String(shown);
+        noResults.style.display = shown === 0 ? "block" : "none";
+      }
+
+      applyFilter("");
+      search.addEventListener('input', () => applyFilter(search.value));
+    })();
+  </script>
+</body>
+</html>
