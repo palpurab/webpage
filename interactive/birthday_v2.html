@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>The Birthday Party</title>
+  <style>
+    :root{
+      --bg:#e9f4fa;
+      --panel:#ffffff;
+      --ink:#0f172a;
+      --muted:#335b73;
+      --line:#2f6f8f;
+      --soft:#cfe7f3;
+    }
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      background:var(--bg);
+      color:var(--ink);
+      line-height:1.3;
+    }
+    .wrap{ max-width: 980px; margin: 18px auto; padding: 0 12px; }
+    .card{
+      background:var(--panel);
+      border:1px solid var(--line);
+      border-radius:10px;
+      padding:16px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.05);
+      margin-bottom:14px;
+    }
+    h1{ font-size: 2rem; margin: 0 0 10px; } /* bigger title */
+    h2{ font-size: 1.05rem; margin: 0 0 10px; color: var(--muted); }
+    label{ display:block; font-weight:650; margin: 10px 0 6px; }
+    input, select, button{
+      width:100%;
+      padding:10px 10px;
+      border-radius:8px;
+      border:1px solid var(--line);
+      background:#fff;
+      font-size: 0.98rem;
+      box-sizing:border-box;
+    }
+    .grid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    @media (max-width: 760px){ .grid{ grid-template-columns:1fr; } }
+    .row{ display:flex; gap:10px; flex-wrap:wrap; }
+    .chip{
+      border:1px solid var(--line);
+      background: #f4fbff;
+      padding:8px 10px;
+      border-radius:999px;
+      cursor:pointer;
+      user-select:none;
+      font-weight:650;
+    }
+    .chip[aria-pressed="true"]{
+      background: var(--soft);
+    }
+    .out{
+      margin-top: 10px;
+      padding: 12px;
+      border-radius:10px;
+      border:1px dashed var(--line);
+      background: #f8fdff;
+      white-space: pre-wrap;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
+      font-size: 0.95rem;
+    }
+    .hint{ color: var(--muted); font-size: 0.95rem; margin-top: 6px; }
+    .btn{
+      background:#1f4f67;
+      color:#fff;
+      border:1px solid #1f4f67;
+      cursor:pointer;
+      font-weight:750;
+    }
+    .btn:active{ transform: translateY(1px); }
+    footer{
+      text-align:center;
+      color: var(--muted);
+      margin: 16px 0 22px;
+      font-size: 0.92rem;
+      line-height: 1.35;
+    }
+    footer a{ color:#1f4f67; font-weight:800; text-decoration:none; }
+    footer a:hover{ text-decoration:underline; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+
+    <div class="card">
+      <h1>Age Re-Unit-ed</h1>
+
+      <div class="hint">
+        If you have ever wondered how old you are in other units of time besides <em>years</em> — and, more importantly, if you are
+        currently located in a time zone different from your place of birth, then use this tool to <em>precisely</em> know your age.
+        <br><br>
+        I once heard Neil deGrasse Tyson say on <em>StarTalk</em> that he celebrated his one-billionth second with a sip of champagne,
+        which inspired me to add the tweak below. If you wonder when you will reach, say, 20,000 minutes of age, or 1.5 billion seconds,
+        or 400 months — in short, any number and any unit of your choice — use the bottom panel to compute it.
+        <br><br>
+        This started out as a birthday gift for Basu. It took me more than a year to get it working, however, the great habit of birthdays of coming back around made it alright!
+      </div>
+
+      <div class="grid">
+        <div>
+          <label for="birthDT">Birth date & time</label>
+          <input id="birthDT" type="datetime-local" />
+          <div class="hint">Tip: include the time if you know it; otherwise just use 00:00.</div>
+        </div>
+
+        <div>
+          <label for="tzBirth">Birth timezone</label>
+          <select id="tzBirth"></select>
+          <div class="hint">This interprets the birth date/time you entered above.</div>
+        </div>
+      </div>
+
+      <div class="grid">
+        <div>
+          <label for="tzDisplay">Display timezone</label>
+          <select id="tzDisplay"></select>
+          <div class="hint">Your age and “target moment” can be shown in any timezone you choose.</div>
+        </div>
+
+        <div>
+          <label>Show age as</label>
+          <div class="row" role="group" aria-label="Age unit toggles">
+            <div class="chip" data-unit="years"   aria-pressed="true">Years</div>
+            <div class="chip" data-unit="months"  aria-pressed="false">Months</div>
+            <div class="chip" data-unit="days"    aria-pressed="false">Days</div>
+            <div class="chip" data-unit="hours"   aria-pressed="false">Hours</div>
+            <div class="chip" data-unit="minutes" aria-pressed="false">Minutes</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="ageOut" class="out">—</div>
+      <div class="hint">Updates live every second.</div>
+    </div>
+
+    <div class="card">
+      <h2>When will I reach ...?</h2>
+
+      <div class="grid">
+        <div>
+          <label for="targetNum">Target number</label>
+          <input id="targetNum" type="number" min="0" step="1" placeholder="e.g., 1000000" />
+        </div>
+        <div>
+          <label for="targetUnit">Target unit</label>
+          <select id="targetUnit">
+            <option value="seconds">Seconds</option>
+            <option value="minutes" selected>Minutes</option>
+            <option value="hours">Hours</option>
+            <option value="days">Days</option>
+          </select>
+        </div>
+      </div>
+
+      <button id="calcTarget" class="btn" type="button">Compute target date/time</button>
+
+      <div id="targetOut" class="out">—</div>
+      <div class="hint">
+        Computed from your birth moment (using your chosen birth timezone), then displayed in your chosen display timezone.
+      </div>
+    </div>
+
+    <footer>
+      © <a href="mailto:palpurab@gmail.com?subject=Regarding%20age%20calculator">Purab Pal</a>, 2026<br/>
+      For comments or concerns, click on the name above.
+    </footer>
+
+  </div>
+
+<script>
+/* ---------------- Timezone utilities (no external libraries) ----------------
+   Plan is to:
+   - Convert a "wall clock" date/time in a chosen IANA timezone to a UTC timestamp.
+   - Convert a UTC timestamp to readable parts in a chosen IANA timezone.
+   Use the standard Intl API + offset-detection trick.
+*/
+
+// Format parts (year,month,day,hour,minute,second) for a UTC millis in a timezone
+function zonedPartsFromUtcMillis(utcMillis, timeZone){
+  const dtf = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+    hour12: false
+  });
+  const parts = dtf.formatToParts(new Date(utcMillis));
+  const get = (type) => parts.find(p => p.type === type)?.value;
+  return {
+    year: +get("year"),
+    month: +get("month"),
+    day: +get("day"),
+    hour: +get("hour"),
+    minute: +get("minute"),
+    second: +get("second"),
+  };
+}
+
+// Compute timezone offset in milliseconds at a UTC instant (positive if tz ahead of UTC)
+function tzOffsetMillisAt(utcMillis, timeZone){
+  const p = zonedPartsFromUtcMillis(utcMillis, timeZone);
+  const asIfUtc = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second);
+  return asIfUtc - utcMillis;
+}
+
+// Convert wall-clock components in timeZone to UTC millis
+function zonedWallToUtcMillis({year, month, day, hour, minute, second}, timeZone){
+  // Start with a naive guess, then correct by the offset at that instant; iterate once more for DST edges.
+  let guess = Date.UTC(year, month - 1, day, hour, minute, second);
+  let off1 = tzOffsetMillisAt(guess, timeZone);
+  let utc1 = guess - off1;
+  let off2 = tzOffsetMillisAt(utc1, timeZone);
+  let utc2 = guess - off2;
+  return utc2;
+}
+
+function pad2(n){ return String(n).padStart(2,"0"); }
+
+function fmtZoned(utcMillis, timeZone){
+  // YYYY-MM-DD HH:MM:SS (TZ)
+  const p = zonedPartsFromUtcMillis(utcMillis, timeZone);
+  return `${p.year}-${pad2(p.month)}-${pad2(p.day)} ${pad2(p.hour)}:${pad2(p.minute)}:${pad2(p.second)} (${timeZone})`;
+}
+
+function nowUtcMillis(){ return Date.now(); }
+
+/* ---------------- Age calculation part is below ---------------- */
+
+function parseDatetimeLocalValue(v){
+  // "YYYY-MM-DDTHH:MM" (seconds may be missing)
+  if(!v) return null;
+  const [datePart, timePart] = v.split("T");
+  if(!datePart || !timePart) return null;
+  const [Y,M,D] = datePart.split("-").map(Number);
+  const t = timePart.split(":").map(Number);
+  const hh = t[0] ?? 0;
+  const mm = t[1] ?? 0;
+  const ss = 0;
+  if(!Y || !M || !D) return null;
+  return {year:Y, month:M, day:D, hour:hh, minute:mm, second:ss};
+}
+
+function fullYearsSince(birthUtc, tzForAnniversary){
+  const now = nowUtcMillis();
+  if(now < birthUtc) return 0;
+
+  const b = zonedPartsFromUtcMillis(birthUtc, tzForAnniversary);
+  const n = zonedPartsFromUtcMillis(now, tzForAnniversary);
+
+  let years = n.year - b.year;
+
+  // Has the birthday (including time) happened this year in that timezone?
+  const thisYearBirthdayWall = {year: n.year, month: b.month, day: b.day, hour: b.hour, minute: b.minute, second: b.second};
+  const thisYearBirthdayUtc = zonedWallToUtcMillis(thisYearBirthdayWall, tzForAnniversary);
+
+  if(now < thisYearBirthdayUtc) years -= 1;
+  return Math.max(0, years);
+}
+
+function fullMonthsSince(birthUtc, tzForAnniversary){
+  const now = nowUtcMillis();
+  if(now < birthUtc) return 0;
+
+  const b = zonedPartsFromUtcMillis(birthUtc, tzForAnniversary);
+  const n = zonedPartsFromUtcMillis(now, tzForAnniversary);
+
+  let months = (n.year - b.year) * 12 + (n.month - b.month);
+
+  // Monthly anniversary (day + time) in the current month (clamp if day doesn't exist)
+  const lastDay = new Date(Date.UTC(n.year, n.month, 0)).getUTCDate(); // last day of current month
+  const day = Math.min(b.day, lastDay);
+
+  const annWall = {year: n.year, month: n.month, day, hour: b.hour, minute: b.minute, second: b.second};
+  const annUtc = zonedWallToUtcMillis(annWall, tzForAnniversary);
+
+  if(now < annUtc) months -= 1;
+  return Math.max(0, months);
+}
+
+/* ---------------- UI wiring ---------------- */
+
+const tzBirth = document.getElementById("tzBirth");
+const tzDisplay = document.getElementById("tzDisplay");
+const birthDT = document.getElementById("birthDT");
+const ageOut = document.getElementById("ageOut");
+const targetNum = document.getElementById("targetNum");
+const targetUnit = document.getElementById("targetUnit");
+const targetOut = document.getElementById("targetOut");
+const calcTargetBtn = document.getElementById("calcTarget");
+
+let ageUnit = "years";
+
+// A pragmatic timezone list (add more if you want)
+const TZ_LIST = [
+  "UTC",
+  "America/Chicago","America/New_York","America/Denver","America/Los_Angeles",
+  "America/Toronto","America/Vancouver",
+  "Europe/London","Europe/Paris","Europe/Berlin","Europe/Rome",
+  "Asia/Kolkata","Asia/Dhaka","Asia/Kathmandu","Asia/Bangkok","Asia/Singapore","Asia/Tokyo","Asia/Shanghai",
+  "Australia/Sydney",
+];
+
+function fillTZSelect(sel){
+  sel.innerHTML = "";
+  for(const tz of TZ_LIST){
+    const opt = document.createElement("option");
+    opt.value = tz;
+    opt.textContent = tz;
+    sel.appendChild(opt);
+  }
+}
+
+// Set defaults
+fillTZSelect(tzBirth);
+fillTZSelect(tzDisplay);
+try{
+  const guessed = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  if(TZ_LIST.includes(guessed)){
+    tzBirth.value = guessed;
+    tzDisplay.value = guessed;
+  } else {
+    tzBirth.value = "UTC";
+    tzDisplay.value = guessed;
+  }
+}catch(e){
+  tzBirth.value = "UTC";
+  tzDisplay.value = "UTC";
+}
+
+// Toggle chips
+document.querySelectorAll(".chip").forEach(ch => {
+  ch.addEventListener("click", () => {
+    document.querySelectorAll(".chip").forEach(x => x.setAttribute("aria-pressed","false"));
+    ch.setAttribute("aria-pressed","true");
+    ageUnit = ch.dataset.unit;
+    renderAge();
+  });
+});
+
+function getBirthUtcMillis(){
+  const parts = parseDatetimeLocalValue(birthDT.value);
+  if(!parts) return null;
+  // Interpret the entered wall-clock as occurring in the selected birth timezone:
+  return zonedWallToUtcMillis(parts, tzBirth.value);
+}
+
+function renderAge(){
+  const bUtc = getBirthUtcMillis();
+  if(bUtc == null){
+    ageOut.textContent = "Enter your birth date & time above.";
+    return;
+  }
+  const now = nowUtcMillis();
+  if(now < bUtc){
+    ageOut.textContent = "That birth moment is in the future (check date/time/timezone).";
+    return;
+  }
+
+  const tzOut = tzDisplay.value;
+
+  const diffMs = now - bUtc;
+  const diffMinutes = Math.floor(diffMs / (60*1000));
+  const diffHours   = Math.floor(diffMs / (60*60*1000));
+  const diffDays    = Math.floor(diffMs / (24*60*60*1000));
+
+  let mainLine = "";
+  if(ageUnit === "minutes"){
+    mainLine = `Age: ${diffMinutes.toLocaleString()} minutes`;
+  } else if(ageUnit === "hours"){
+    mainLine = `Age: ${diffHours.toLocaleString()} hours`;
+  } else if(ageUnit === "days"){
+    mainLine = `Age: ${diffDays.toLocaleString()} days`;
+  } else if(ageUnit === "months"){
+    const m = fullMonthsSince(bUtc, tzBirth.value);
+    mainLine = `Age: ${m.toLocaleString()} full months`;
+  } else { // years
+    const y = fullYearsSince(bUtc, tzBirth.value);
+    mainLine = `Age: ${y.toLocaleString()} full years`;
+  }
+
+  const birthShown = fmtZoned(bUtc, tzOut);
+  const nowShown   = fmtZoned(now, tzOut);
+
+  ageOut.textContent =
+`${mainLine}
+
+Birth moment shown in ${tzOut}:
+${birthShown}
+
+Now shown in ${tzOut}:
+${nowShown}`;
+}
+
+function computeTarget(){
+  const bUtc = getBirthUtcMillis();
+  if(bUtc == null){
+    targetOut.textContent = "Enter your birth date & time above first.";
+    return;
+  }
+  const n = Number(targetNum.value);
+  if(!Number.isFinite(n) || n < 0){
+    targetOut.textContent = "Enter a valid non-negative target number.";
+    return;
+  }
+
+  const unit = targetUnit.value;
+  let addMs = 0;
+  if(unit === "seconds") addMs = n * 1000;
+  else if(unit === "minutes") addMs = n * 60 * 1000;
+  else if(unit === "hours") addMs = n * 60 * 60 * 1000;
+  else if(unit === "days") addMs = n * 24 * 60 * 60 * 1000;
+
+  const targetUtc = bUtc + addMs;
+
+  const tzOut = tzDisplay.value;
+  const shown = fmtZoned(targetUtc, tzOut);
+
+  const now = nowUtcMillis();
+  let extra = "";
+  if(targetUtc >= now){
+    const remainingMs = targetUtc - now;
+    const remDays = Math.floor(remainingMs / (24*60*60*1000));
+    const remHrs  = Math.floor((remainingMs % (24*60*60*1000)) / (60*60*1000));
+    const remMin  = Math.floor((remainingMs % (60*60*1000)) / (60*1000));
+    const remSec  = Math.floor((remainingMs % (60*1000)) / 1000);
+    extra = `\n\nTime remaining (approx): ${remDays}d ${remHrs}h ${remMin}m ${remSec}s`;
+  } else {
+    extra = "\n\n(That target moment is already in the past.)";
+  }
+
+  targetOut.textContent =
+`Target: ${n.toLocaleString()} ${unit}
+Target moment in ${tzOut}:
+${shown}${extra}`;
+}
+
+// Live updates
+setInterval(renderAge, 1000);
+
+// Events
+[birthDT, tzBirth, tzDisplay].forEach(el => el.addEventListener("input", () => {
+  renderAge();
+  if(targetNum.value !== "") computeTarget();
+}));
+calcTargetBtn.addEventListener("click", computeTarget);
+
+// Initial
+renderAge();
+</script>
+</body>
+</html>
