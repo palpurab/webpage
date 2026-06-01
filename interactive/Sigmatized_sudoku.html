@@ -7,8 +7,8 @@
 <style>
   :root {
     --board-size: min(56vh, 56vw, 580px);
-    --digit-font: clamp(22px, 3.1vw, 36px);
-    --note-font: clamp(13px, 1.55vw, 18px);
+    --digit-font: clamp(18px, 2.45vw, 28px);
+    --note-font: clamp(10px, 1.25vw, 14px);
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; background: #fff; color: #000; font-family: Arial, Helvetica, sans-serif; }
@@ -85,8 +85,8 @@
   .cell.selected::after {
     content: "";
     position: absolute;
-    inset: 5px;
-    border: 3px solid rgba(12, 91, 255, .9);
+    inset: 7px;
+    border: 2.5px solid rgba(12, 91, 255, .9);
     pointer-events: none;
   }
   .cell.multi-selected::before {
@@ -101,20 +101,21 @@
     z-index: 4;
     display: grid;
     place-items: center;
-    width: .92em;
-    height: .92em;
-    border-radius: 50%;
-    background: rgba(255,255,255,.76);
+    width: 100%;
+    height: 100%;
+    border-radius: 0;
+    background: transparent;
     font-size: var(--digit-font);
-    font-weight: 800;
+    font-weight: 500;
     line-height: 1;
+    font-variant-numeric: tabular-nums;
   }
   .cell.correct .digit { color: #087f23; }
-  .cell.wrong .digit { color: #c40000; outline: 3px solid #c40000; }
+  .cell.wrong .digit { color: #c40000; text-decoration: underline; outline: 0; }
   .notes {
     z-index: 4;
-    width: 90%;
-    height: 90%;
+    width: 88%;
+    height: 88%;
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     grid-template-rows: repeat(3, 1fr);
@@ -124,7 +125,7 @@
     line-height: 1;
     font-weight: 400;
     color: #111;
-    background: rgba(255,255,255,.62);
+    background: transparent;
   }
 
   .controls {
