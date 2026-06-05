@@ -6,7 +6,9 @@
 <title>"SIGMA"tized</title>
 <style>
   :root {
-    --board-size: min(56vh, 56vw, 580px);
+    --board-size: min(64vw, 620px);
+    --side-width: 291px;
+    --main-gap: 22px;
     --digit-font: clamp(18px, 2.45vw, 28px);
     --note-font: clamp(10px, 1.25vw, 14px);
   }
@@ -14,52 +16,57 @@
   html, body { margin: 0; background: #fff; color: #000; font-family: Arial, Helvetica, sans-serif; }
   body { min-height: 100vh; overflow-x: hidden; }
   .page {
-    width: min(1120px, 98vw);
-    margin: 8px auto;
-    display: grid;
-    grid-template-columns: var(--board-size) 320px;
-    grid-template-rows: auto auto;
-    column-gap: clamp(24px, 3.5vw, 44px);
-    row-gap: 8px;
-    align-items: start;
+    width: calc(var(--board-size) + var(--main-gap) + var(--side-width));
+    max-width: 94vw;
+    margin: 28px auto 36px;
   }
   .topbar {
-    grid-column: 1 / -1;
+    width: 100%;
     display: flex;
     justify-content: space-between;
     align-items: end;
     gap: 18px;
+    margin-bottom: 10px;
   }
   .title {
     margin: 0;
-    font-size: clamp(24px, 3.2vw, 32px);
-    font-weight: 800;
+    font-size: clamp(42px, 5.6vw, 58px);
+    line-height: .98;
+    font-weight: 900;
     letter-spacing: .01em;
   }
   .quote { letter-spacing: .045em; }
-  .byline { margin-top: 2px; font-size: 13px; font-weight: 600; }
+  .byline { margin-top: 10px; font-size: clamp(20px, 2.4vw, 25px); font-weight: 900; }
   .scorebar { display: flex; gap: 8px; align-items: stretch; }
   .timer, .counter {
     border: 3px solid #000;
     background: #fff;
-    min-height: 44px;
+    min-height: 84px;
     display: grid;
     place-items: center;
-    padding: 5px 10px;
-    font-size: 13px;
-    line-height: 1.15;
-    font-weight: 800;
+    padding: 6px 10px;
+    font-size: 12px;
+    line-height: 1.25;
+    font-weight: 900;
     text-align: center;
   }
-  .timer { min-width: 78px; font-variant-numeric: tabular-nums; }
-  .counter { min-width: 112px; }
+  .timer { min-width: 64px; font-variant-numeric: tabular-nums; }
+  .counter { min-width: 92px; }
+
+  .mainrow {
+    width: 100%;
+    display: grid;
+    grid-template-columns: var(--board-size) var(--side-width);
+    column-gap: var(--main-gap);
+    align-items: start;
+  }
 
   .board {
     position: relative;
     width: var(--board-size);
     height: var(--board-size);
     background: white;
-    outline: 3px solid #000;
+    border: 3px solid #000;
   }
   .grid-lines, .clue-layer, .entry-grid {
     position: absolute;
@@ -129,34 +136,43 @@
   }
 
   .controls {
-    width: 320px;
+    width: var(--side-width);
     min-height: var(--board-size);
     display: grid;
     grid-template-columns: 205px 74px;
-    grid-template-rows: auto auto auto auto 1fr;
-    gap: 10px 12px;
+    grid-template-rows: auto auto auto 1fr;
+    gap: 8px 12px;
     align-content: start;
     align-items: start;
   }
   .howto {
-    grid-column: 1 / -1;
+    width: 100%;
     border: 3px solid #000;
-    padding: 8px 9px;
-    font-size: 12px;
-    line-height: 1.22;
-    font-weight: 600;
+    padding: 9px 10px;
+    margin-bottom: 20px;
+    font-size: clamp(12px, 1.45vw, 16px);
+    line-height: 1.18;
+    font-weight: 800;
   }
   .howto strong { font-weight: 900; }
-  .rule-button {
+  .rules-card {
     grid-column: 1 / -1;
-    justify-self: start;
+    width: 100%;
     border: 3px solid #000;
-    background: #fff;
-    padding: 7px 17px;
-    font-size: 15px;
-    font-weight: 900;
-    cursor: pointer;
+    padding: 8px 9px 7px;
+    font-size: 11px;
+    line-height: 1.12;
+    font-weight: 800;
   }
+  .rules-card h2 {
+    margin: 0 0 4px;
+    font-size: 16px;
+    line-height: 1.05;
+    font-weight: 900;
+  }
+  .rules-card ol { margin: 0; padding-left: 18px; }
+  .rules-card li { margin: 2px 0; }
+  .rules-card ul { margin: 1px 0 0; padding-left: 14px; }
   .pad, .palette {
     width: 205px;
     height: 205px;
@@ -241,13 +257,14 @@
   @media (max-width: 940px) {
     :root { --board-size: min(92vw, 590px); }
     body { overflow-y: auto; }
-    .page {
+    .page { width: 96vw; max-width: 96vw; margin-top: 12px; }
+    .topbar { width: 100%; }
+    .mainrow {
       grid-template-columns: 1fr;
       justify-items: center;
-      width: 96vw;
+      row-gap: 16px;
     }
-    .topbar { width: 100%; }
-    .controls { width: min(330px, 94vw); }
+    .controls { width: min(var(--side-width), 94vw); }
   }
 </style>
 </head>
@@ -267,6 +284,14 @@
     </div>
   </header>
 
+  <div class="howto">
+    <strong>How this page works:</strong> Select one or more squares, then use the pad.
+    <strong>#</strong> enters final digits. <strong>✓</strong> checks the grid.
+    <strong>✏️</strong> makes pencil marks, <strong>🎨</strong> colors cells, and <strong>🧽</strong> erases.
+    Drag across cells or Shift/Ctrl-click to select several cells.
+  </div>
+
+  <div class="mainrow">
   <section class="board" aria-label="SIGMA-tized sudoku board">
     <svg class="grid-lines" viewBox="0 0 900 900" preserveAspectRatio="none" aria-hidden="true">
       <g stroke="#000" stroke-linecap="square">
@@ -291,9 +316,9 @@
 
     <svg class="clue-layer" viewBox="0 0 900 900" aria-hidden="true">
       <g fill="none" stroke-linecap="square" stroke-linejoin="miter">
-        <path d="M450 55 L560 55 L455 155 L560 255 L345 255 L345 175" stroke="#a12a9b" stroke-width="4"/>
-        <path d="M265 360 L35 360 L155 455 L35 560 L265 560" stroke="#a12a9b" stroke-width="4"/>
-        <path d="M650 360 L870 360 L750 455 L870 560 L650 560" stroke="#a12a9b" stroke-width="4"/>
+        <path d="M450 50 L550 50 L450 150 L550 250 L350 250 L350 150" stroke="#a12a9b" stroke-width="4"/>
+        <path d="M250 350 L50 350 L150 450 L50 550 L250 550" stroke="#a12a9b" stroke-width="4"/>
+        <path d="M650 350 L850 350 L750 450 L850 550 L650 550" stroke="#a12a9b" stroke-width="4"/>
         <path d="M60 155 L130 155" stroke="#3a9a2a" stroke-width="4"/>
         <path d="M760 75 L845 160" stroke="#3a9a2a" stroke-width="4"/>
         <path d="M660 165 L745 250" stroke="#3a9a2a" stroke-width="4"/>
@@ -333,13 +358,23 @@
   </section>
 
   <section class="controls" id="controls" aria-label="Controls">
-    <div class="howto">
-      <strong>How this page works:</strong> Select one or more squares, then use the pad.
-      <strong>#</strong> enters final digits. <strong>✓</strong> checks the grid.
-      <strong>✏️</strong> makes pencil marks, <strong>🎨</strong> colors cells, and <strong>🧽</strong> erases.
-      Drag across cells or Shift/Ctrl-click to select several cells.
+    <div class="rules-card" aria-label="SIGMA-tized rules">
+      <h2><span class="quote">"SIGMA"</span>tized rules</h2>
+      <ol>
+        <li>Normal sudoku rules apply.</li>
+        <li>Digits separated by a solid black dot are in a 1:2 ratio.</li>
+        <li>Digits separated by a white dot are consecutive.</li>
+        <li>Digits separated by a Roman numeral five sum to 5.
+          <ul><li>All such dominoes are given.</li></ul>
+        </li>
+        <li>Digits separated by a Roman numeral ten sum to 10.
+          <ul><li>Not all such dominoes are given.</li></ul>
+        </li>
+        <li>German whisper line (green line): Digits across a green line are at least 5 apart. If a green line spans two cells, then their difference is exactly 5. Digits may repeat if allowed by sudoku rules.</li>
+        <li>Renban line (purple line): digits on a purple line must form a consecutive, non-repeating set in any order.</li>
+        <li>Digits on both diagonals do not repeat.</li>
+      </ol>
     </div>
-    <button class="rule-button" id="rulesBtn" type="button">Rules</button>
 
     <div class="pad" id="numberPad"></div>
     <div class="palette" id="palette"></div>
@@ -356,28 +391,10 @@
     </div>
     <div class="status" id="status">Click a cell. Drag or Shift/Ctrl-click to select more.</div>
   </section>
+  </div>
 </main>
 
-<dialog id="rulesDialog">
-  <h2><span class="quote">"SIGMA"</span>tized rules</h2>
-  
-<ol>
-  <li>Normal sudoku rules apply.</li>
-  <li>Digits separated by a solid black dot are in a 1:2 ratio.</li>
-  <li>Digits separated by a white dot are consecutive.</li>
-  <li>Digits separated by a Roman numeral five sum to 5.
-    <ul><li>All such dominoes are given.</li></ul>
-  </li>
-  <li>Digits separated by a Roman numeral ten sum to 10.
-    <ul><li>Not all such dominoes are given.</li></ul>
-  </li>
-  <li>German whisper line (green line): Digits across a green line are at least 5 apart. If a green line spans two cells, then their difference is exactly 5. Digits on a German whisper line may repeat if allowed by sudoku rules.</li>
-  <li>Renban line (purple line): digits on a purple line must form a consecutive, non-repeating set in any order.</li>
-  <li>Digits on both diagonals do not repeat.</li>
-</ol>
 
-  <p><button class="close" id="closeRules" type="button">Close</button></p>
-</dialog>
 
 <script>
 const solution = [[6, 4, 3, 8, 1, 2, 7, 9, 5], [7, 2, 1, 5, 3, 9, 8, 6, 4], [8, 5, 9, 4, 7, 6, 2, 3, 1], [5, 1, 4, 7, 2, 3, 9, 8, 6], [9, 3, 8, 6, 4, 5, 1, 7, 2], [2, 7, 6, 9, 8, 1, 5, 4, 3], [4, 6, 7, 2, 5, 8, 3, 1, 9], [3, 8, 2, 1, 9, 4, 6, 5, 7], [1, 9, 5, 3, 6, 7, 4, 2, 8]];
@@ -647,8 +664,6 @@ document.getElementById("pencilBtn").addEventListener("click", () => setMode("pe
 document.getElementById("colorBtn").addEventListener("click", () => setMode("color"));
 document.getElementById("eraseBtn").addEventListener("click", erase);
 document.getElementById("checkBtn").addEventListener("click", check);
-document.getElementById("rulesBtn").addEventListener("click", () => document.getElementById("rulesDialog").showModal());
-document.getElementById("closeRules").addEventListener("click", () => document.getElementById("rulesDialog").close());
 
 document.addEventListener("mouseup", () => {
   mouseDown = false;
