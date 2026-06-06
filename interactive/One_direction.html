@@ -1,0 +1,745 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>"SIGMA"tized</title>
+<style>
+  :root {
+    --board-size: min(64vw, 620px);
+    --side-width: 291px;
+    --main-gap: 22px;
+    --digit-font: clamp(18px, 2.45vw, 28px);
+    --note-font: clamp(10px, 1.25vw, 14px);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #fff; color: #000; font-family: Arial, Helvetica, sans-serif; }
+  body { min-height: 100vh; overflow-x: hidden; }
+  .page {
+    width: calc(var(--board-size) + var(--main-gap) + var(--side-width));
+    max-width: 94vw;
+    margin: 28px auto 36px;
+  }
+  .topbar {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: end;
+    gap: 18px;
+    margin-bottom: 10px;
+  }
+  .title {
+    margin: 0;
+    font-size: clamp(42px, 5.6vw, 58px);
+    line-height: .98;
+    font-weight: 900;
+    letter-spacing: .01em;
+  }
+  .quote { letter-spacing: .045em; }
+  .byline { margin-top: 10px; font-size: clamp(20px, 2.4vw, 25px); font-weight: 900; }
+  .scorebar { display: flex; gap: 8px; align-items: stretch; }
+  .timer, .counter {
+    border: 3px solid #000;
+    background: #fff;
+    min-height: 84px;
+    display: grid;
+    place-items: center;
+    padding: 6px 10px;
+    font-size: 12px;
+    line-height: 1.25;
+    font-weight: 900;
+    text-align: center;
+  }
+  .timer { min-width: 64px; font-variant-numeric: tabular-nums; }
+  .counter { min-width: 92px; }
+
+  .mainrow {
+    width: 100%;
+    display: grid;
+    grid-template-columns: var(--board-size) var(--side-width);
+    column-gap: var(--main-gap);
+    align-items: start;
+  }
+
+  .board {
+    position: relative;
+    width: var(--board-size);
+    height: var(--board-size);
+    background: white;
+    border: 3px solid #000;
+  }
+  .grid-lines, .clue-layer, .entry-grid {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+  .grid-lines { pointer-events: none; z-index: 4; }
+  .clue-layer { pointer-events: none; z-index: 5; overflow: visible; }
+  .entry-grid {
+    z-index: 3;
+    display: grid;
+    grid-template-columns: repeat(9, 1fr);
+    grid-template-rows: repeat(9, 1fr);
+  }
+  .cell {
+    position: relative;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    user-select: none;
+  }
+  .cell.selected::after {
+    content: "";
+    position: absolute;
+    inset: 7px;
+    border: 2.5px solid rgba(12, 91, 255, .9);
+    pointer-events: none;
+  }
+  .cell.multi-selected::before {
+    content: "";
+    position: absolute;
+    inset: 4px;
+    background: rgba(12, 91, 255, .12);
+    border: 2px solid rgba(12, 91, 255, .55);
+    pointer-events: none;
+  }
+  .digit {
+    z-index: 4;
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 100%;
+    border-radius: 0;
+    background: transparent;
+    font-size: var(--digit-font);
+    font-weight: 500;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .cell.correct .digit { color: #087f23; }
+  .cell.wrong .digit { color: #c40000; text-decoration: underline; outline: 0; }
+  .notes {
+    z-index: 4;
+    width: 88%;
+    height: 88%;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    align-items: center;
+    justify-items: center;
+    font-size: var(--note-font);
+    line-height: 1;
+    font-weight: 400;
+    color: #111;
+    background: transparent;
+  }
+
+  .controls {
+    width: var(--side-width);
+    min-height: var(--board-size);
+    display: grid;
+    grid-template-columns: 205px 74px;
+    grid-template-rows: auto auto auto 1fr;
+    gap: 8px 12px;
+    align-content: start;
+    align-items: start;
+  }
+  .howto {
+    width: 100%;
+    border: 3px solid #000;
+    padding: 9px 10px;
+    margin-bottom: 20px;
+    font-size: clamp(12px, 1.45vw, 16px);
+    line-height: 1.18;
+    font-weight: 800;
+  }
+  .howto strong { font-weight: 900; }
+  .rules-card {
+    grid-column: 1 / -1;
+    width: 100%;
+    border: 3px solid #000;
+    padding: 8px 9px 7px;
+    font-size: 11px;
+    line-height: 1.12;
+    font-weight: 800;
+  }
+  .rules-card h2 {
+    margin: 0 0 4px;
+    font-size: 16px;
+    line-height: 1.05;
+    font-weight: 900;
+  }
+  .rules-card ol { margin: 0; padding-left: 18px; }
+  .rules-card li { margin: 2px 0; }
+  .rules-card ul { margin: 1px 0 0; padding-left: 14px; }
+  .pad, .palette {
+    width: 205px;
+    height: 205px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    gap: 3px;
+    padding: 0;
+    border: 3px solid #000;
+    background: #000;
+  }
+  .palette { display: none; }
+  .pad button, .palette button {
+    border: 0;
+    background: #fff;
+    cursor: pointer;
+  }
+  .pad button {
+    font-size: 38px;
+    font-weight: 500;
+  }
+  .side {
+    width: 74px;
+    display: grid;
+    grid-template-rows: 74px 74px;
+    border: 3px solid #000;
+  }
+  .side button {
+    border: 0;
+    border-bottom: 3px solid #000;
+    background: white;
+    font-size: 40px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .side button:last-child { border-bottom: 0; }
+  .toolrow {
+    grid-column: 1 / 2;
+    width: 205px;
+    height: 68px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 3px;
+    border: 3px solid #000;
+    background: #000;
+  }
+  .toolrow button {
+    border: 0;
+    background: white;
+    font-size: 30px;
+    cursor: pointer;
+  }
+  button:hover { background: #f3f3f3; }
+  .side button.active, .toolrow button.active { background: #111; color: #fff; }
+  .palette button.active { outline: 5px solid #000; outline-offset: -8px; }
+  .mode-palette .pad { display: none; }
+  .mode-palette .palette { display: grid; }
+  .status {
+    grid-column: 1 / -1;
+    min-height: 28px;
+    font-size: 13px;
+    line-height: 1.2;
+    font-weight: 800;
+  }
+  dialog {
+    width: min(780px, 92vw);
+    border: 3px solid #000;
+    padding: 22px;
+  }
+  dialog::backdrop { background: rgba(0,0,0,.24); }
+  dialog h2 { margin: 0 0 12px; font-size: 30px; }
+  dialog li { margin: 7px 0; font-size: 17px; line-height: 1.35; }
+  dialog ul { margin-top: 5px; }
+  .close {
+    border: 3px solid #000;
+    background: white;
+    padding: 9px 16px;
+    font-size: 16px;
+    font-weight: 800;
+    cursor: pointer;
+  }
+  @media (max-width: 940px) {
+    :root { --board-size: min(92vw, 590px); }
+    body { overflow-y: auto; }
+    .page { width: 96vw; max-width: 96vw; margin-top: 12px; }
+    .topbar { width: 100%; }
+    .mainrow {
+      grid-template-columns: 1fr;
+      justify-items: center;
+      row-gap: 16px;
+    }
+    .controls { width: min(var(--side-width), 94vw); }
+  }
+</style>
+</head>
+<body>
+<main class="page">
+  <header class="topbar">
+    <div>
+      <h1 class="title"><span class="quote">"One"</span> direction</h1>
+      <div class="byline">Designed by Purab Pal</div>
+    </div>
+    <div class="scorebar" aria-label="Puzzle statistics">
+      <div class="timer" id="timer">00:00</div>
+      <div class="counter" title="Attempts and solved count">
+        Attempts: <span id="attemptCount">0</span><br>
+        Solutions: <span id="solutionCount">0</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="howto">
+    <strong>How this page works:</strong> Select one or more squares, then use the pad.
+    <strong>#</strong> enters final digits. <strong>✓</strong> checks the grid.
+    <strong>✏️</strong> makes pencil marks, <strong>🎨</strong> colors cells, and <strong>🧽</strong> erases.
+    In pencil mode, keyboard digits or letters such as <strong>a</strong>, <strong>b</strong>, <strong>c</strong> add/remove pencil marks.
+    Drag across cells or Shift/Ctrl-click to select several cells.
+  </div>
+
+  <div class="mainrow">
+  <section class="board" aria-label="SIGMA-tized sudoku board">
+    <svg class="grid-lines" viewBox="0 0 900 900" preserveAspectRatio="none" aria-hidden="true">
+      <g stroke="#000" stroke-linecap="square" opacity="1">
+        <line x1="100" y1="0" x2="100" y2="900" stroke-width="3.2"/>
+        <line x1="200" y1="0" x2="200" y2="900" stroke-width="3.2"/>
+        <line x1="300" y1="0" x2="300" y2="900" stroke-width="7"/>
+        <line x1="400" y1="0" x2="400" y2="900" stroke-width="3.2"/>
+        <line x1="500" y1="0" x2="500" y2="900" stroke-width="3.2"/>
+        <line x1="600" y1="0" x2="600" y2="900" stroke-width="7"/>
+        <line x1="700" y1="0" x2="700" y2="900" stroke-width="3.2"/>
+        <line x1="800" y1="0" x2="800" y2="900" stroke-width="3.2"/>
+        <line x1="0" y1="100" x2="900" y2="100" stroke-width="3.2"/>
+        <line x1="0" y1="200" x2="900" y2="200" stroke-width="3.2"/>
+        <line x1="0" y1="300" x2="900" y2="300" stroke-width="7"/>
+        <line x1="0" y1="400" x2="900" y2="400" stroke-width="3.2"/>
+        <line x1="0" y1="500" x2="900" y2="500" stroke-width="3.2"/>
+        <line x1="0" y1="600" x2="900" y2="600" stroke-width="7"/>
+        <line x1="0" y1="700" x2="900" y2="700" stroke-width="3.2"/>
+        <line x1="0" y1="800" x2="900" y2="800" stroke-width="3.2"/>
+      </g>
+    </svg>
+
+    <svg class="clue-layer" viewBox="0 0 900 900" aria-hidden="true">
+      <g fill="none" stroke-linecap="square" stroke-linejoin="miter">
+        <rect x="7" y="7" width="186" height="186" stroke="#05324a" stroke-width="4.2" stroke-dasharray="5 6"/>
+        <rect x="707" y="7" width="186" height="186" stroke="#05324a" stroke-width="4.2" stroke-dasharray="5 6"/>
+        <rect x="207" y="207" width="86" height="186" stroke="#05324a" stroke-width="4.2" stroke-dasharray="5 6"/>
+        <rect x="7" y="707" width="186" height="186" stroke="#05324a" stroke-width="4.2" stroke-dasharray="5 6"/>
+        <rect x="707" y="707" width="186" height="186" stroke="#05324a" stroke-width="4.2" stroke-dasharray="5 6"/>
+      </g>
+
+      <g font-family="Arial, Helvetica, sans-serif" font-size="29" font-weight="900" fill="#111">
+        <text x="12" y="34">16</text>
+        <text x="712" y="34">24</text>
+        <text x="212" y="234">13</text>
+        <text x="12" y="734">23</text>
+        <text x="712" y="734">24</text>
+      </g>
+
+      <g font-family="Arial, Helvetica, sans-serif" font-size="43" font-weight="900"
+         fill="#0b4f6f" stroke="#fff" stroke-width="3" paint-order="stroke fill"
+         text-anchor="middle" dominant-baseline="central">
+        <text x="150" y="100">V</text>
+        <text x="500" y="250">V</text>
+        <text x="550" y="300">V</text>
+        <text x="800" y="250">V</text>
+        <text x="750" y="300">V</text>
+        <text x="850" y="300">V</text>
+        <text x="800" y="350">V</text>
+        <text x="700" y="450">V</text>
+        <text x="50" y="600">V</text>
+        <text x="350" y="600">V</text>
+        <text x="200" y="750">V</text>
+        <text x="400" y="750">V</text>
+      </g>
+
+      <g fill="#000">
+        <circle cx="500" cy="150" r="13"/>
+      </g>
+
+      <g fill="#fff" stroke="#000" stroke-width="2.4">
+        <circle cx="100" cy="50" r="12"/>
+        <circle cx="800" cy="150" r="12"/>
+        <circle cx="750" cy="200" r="12"/>
+        <circle cx="100" cy="350" r="12"/>
+        <circle cx="450" cy="800" r="12"/>
+        <circle cx="800" cy="750" r="12"/>
+      </g>
+    </svg>
+
+    <div class="entry-grid" id="grid"></div>
+  </section>
+
+  <section class="controls" id="controls" aria-label="Controls">
+    <div class="rules-card" aria-label="One direction rules">
+      <h2><span class="quote">"One"</span> direction rules</h2>
+      <ol>
+        <li>Normal sudoku rules apply.</li>
+        <li>Digits 1–9 do not repeat in each colored cage.</li>
+        <li>In each 3×3 box, 1 can only go in the corner cells, or the center cell.</li>
+        <li>Cages that have a dotted boundary are sum cages, and the sum value of those cages is denoted on the top left.</li>
+        <li>Cages separated by a V sum to 5.
+          <ul><li>All such dominoes are given.</li></ul>
+        </li>
+        <li>Cages separated by a black dot have a 1:2 ratio among them.</li>
+        <li>Cages separated by a white dot are consecutive.</li>
+      </ol>
+    </div>
+
+    <div class="pad" id="numberPad"></div>
+    <div class="palette" id="palette"></div>
+
+    <div class="side">
+      <button id="checkBtn" type="button" title="Check solution">✓</button>
+      <button id="digitBtn" type="button" class="active" title="Digit entry mode">#</button>
+    </div>
+
+    <div class="toolrow">
+      <button id="eraseBtn" type="button" title="Erase selected cells">🧽</button>
+      <button id="colorBtn" type="button" title="Color palette">🎨</button>
+      <button id="pencilBtn" type="button" title="Pencil marks">✏️</button>
+    </div>
+    <div class="status" id="status">Click a cell. Drag or Shift/Ctrl-click to select more.</div>
+  </section>
+  </div>
+</main>
+
+
+
+<script>
+const solution = [[3, 4, 7, 5, 8, 2, 1, 6, 9], [8, 1, 2, 9, 3, 6, 7, 4, 5], [6, 9, 5, 7, 4, 1, 8, 3, 2], [7, 6, 8, 1, 5, 4, 9, 2, 3], [2, 5, 9, 8, 6, 3, 4, 1, 7], [1, 3, 4, 2, 9, 7, 5, 8, 6], [4, 8, 6, 3, 7, 5, 2, 9, 1], [5, 2, 3, 4, 1, 9, 6, 7, 8], [9, 7, 1, 6, 2, 8, 3, 5, 4]];
+const cageColors = [["rgba(136,136,135,.48)", "rgba(136,136,135,.48)", "rgba(136,136,135,.48)", "rgba(136,136,135,.48)", "rgba(239,201,236,.60)", "rgba(239,201,236,.60)", "rgba(239,201,236,.60)", "rgba(239,201,236,.60)", "rgba(239,201,236,.60)"], ["rgba(136,136,135,.48)", "rgba(136,136,135,.48)", "rgba(136,136,135,.48)", "rgba(136,136,135,.48)", "rgba(239,201,236,.60)", "rgba(207,101,204,.46)", "rgba(239,201,236,.60)", "rgba(207,101,204,.46)", "rgba(207,101,204,.46)"], ["rgba(136,136,135,.48)", "rgba(67,179,216,.45)", "rgba(242,173,132,.50)", "rgba(242,173,132,.50)", "rgba(239,201,236,.60)", "rgba(207,101,204,.46)", "rgba(207,101,204,.46)", "rgba(145,216,121,.50)", "rgba(207,101,204,.46)"], ["rgba(67,179,216,.45)", "rgba(67,179,216,.45)", "rgba(67,179,216,.45)", "rgba(242,173,132,.50)", "rgba(239,201,236,.60)", "rgba(80,150,216,.48)", "rgba(207,101,204,.46)", "rgba(145,216,121,.50)", "rgba(207,101,204,.46)"], ["rgba(67,179,216,.45)", "rgba(67,179,216,.45)", "rgba(242,173,132,.50)", "rgba(242,173,132,.50)", "rgba(80,150,216,.48)", "rgba(80,150,216,.48)", "rgba(145,216,121,.50)", "rgba(145,216,121,.50)", "rgba(207,101,204,.46)"], ["rgba(67,179,216,.45)", "rgba(67,179,216,.45)", "rgba(242,173,132,.50)", "rgba(242,173,132,.50)", "rgba(80,150,216,.48)", "#ffffff", "rgba(145,216,121,.50)", "rgba(145,216,121,.50)", "rgba(145,216,121,.50)"], ["rgba(67,179,216,.45)", "rgba(201,237,247,.58)", "rgba(242,173,132,.50)", "rgba(242,173,132,.50)", "rgba(80,150,216,.48)", "rgba(80,150,216,.48)", "#ffffff", "rgba(145,216,121,.50)", "#ffffff"], ["rgba(201,237,247,.58)", "rgba(201,237,247,.58)", "rgba(201,237,247,.58)", "rgba(201,237,247,.58)", "rgba(80,150,216,.48)", "#ffffff", "#ffffff", "rgba(145,216,121,.50)", "#ffffff"], ["rgba(201,237,247,.58)", "rgba(201,237,247,.58)", "rgba(201,237,247,.58)", "rgba(201,237,247,.58)", "rgba(80,150,216,.48)", "rgba(80,150,216,.48)", "#ffffff", "#ffffff", "#ffffff"]];
+const grid = document.getElementById("grid");
+const controls = document.getElementById("controls");
+const statusEl = document.getElementById("status");
+const timerEl = document.getElementById("timer");
+const attemptCountEl = document.getElementById("attemptCount");
+const solutionCountEl = document.getElementById("solutionCount");
+const numberPad = document.getElementById("numberPad");
+const palette = document.getElementById("palette");
+
+let mode = "digit";
+let activeColor = "rgba(255, 225, 60, .46)";
+let mouseDown = false;
+let draggedDuringMouseDown = false;
+let attempts = 0;
+let solutionsFound = 0;
+let solvedAlready = false;
+const startTime = Date.now();
+const cells = [];
+const selectedCells = new Set();
+
+const colors = [
+  "rgba(255, 225, 60, .46)",
+  "rgba(87, 200, 96, .38)",
+  "rgba(78, 160, 255, .35)",
+  "rgba(190, 120, 255, .35)",
+  "rgba(255, 130, 180, .35)",
+  "rgba(255, 150, 60, .40)",
+  "rgba(90, 220, 210, .36)",
+  "rgba(175, 175, 175, .36)",
+  "transparent"
+];
+
+function keyOf(r,c) { return `${r},${c}`; }
+function parseKey(k) { return k.split(",").map(Number); }
+
+function updateTimer() {
+  const elapsed = Math.floor((Date.now() - startTime) / 1000);
+  const minutes = String(Math.floor(elapsed / 60)).padStart(2, "0");
+  const seconds = String(elapsed % 60).padStart(2, "0");
+  timerEl.textContent = `${minutes}:${seconds}`;
+}
+setInterval(updateTimer, 1000);
+updateTimer();
+
+function makeCell(r,c) {
+  const el = document.createElement("div");
+  el.className = "cell";
+  el.tabIndex = 0;
+  el.dataset.r = r;
+  el.dataset.c = c;
+  el.dataset.value = "";
+  el.dataset.notes = "";
+  el.dataset.color = "";
+  el.dataset.baseColor = cageColors[r][c];
+
+  el.addEventListener("mousedown", e => {
+    mouseDown = true;
+    draggedDuringMouseDown = false;
+    if (e.shiftKey || e.ctrlKey || e.metaKey) toggleSelectCell(r,c);
+    else selectOnlyCell(r,c);
+    if (mode === "color") applyColor(el);
+    e.preventDefault();
+  });
+
+  el.addEventListener("mouseover", () => {
+    if (!mouseDown) return;
+    draggedDuringMouseDown = true;
+    addSelectCell(r,c);
+    if (mode === "color") applyColor(el);
+  });
+
+  el.addEventListener("click", e => {
+    if (draggedDuringMouseDown) return;
+    if (e.shiftKey || e.ctrlKey || e.metaKey) toggleSelectCell(r,c);
+  });
+
+  return el;
+}
+
+function render(el) {
+  const selected = el.classList.contains("selected");
+  const multi = el.classList.contains("multi-selected");
+  const correct = el.classList.contains("correct");
+  const wrong = el.classList.contains("wrong");
+  el.innerHTML = "";
+  el.style.backgroundColor = el.dataset.color || el.dataset.baseColor || "";
+  if (el.dataset.value) {
+    const d = document.createElement("span");
+    d.className = "digit";
+    d.textContent = el.dataset.value;
+    el.appendChild(d);
+  } else if (el.dataset.notes) {
+    const box = document.createElement("div");
+    box.className = "notes";
+    const noteChars = Array.from(new Set(el.dataset.notes.split("").filter(Boolean))).slice(0, 9);
+    for (let i=0; i<9; i++) {
+      const s = document.createElement("span");
+      s.textContent = noteChars[i] || "";
+      box.appendChild(s);
+    }
+    el.appendChild(box);
+  }
+  el.classList.toggle("selected", selected);
+  el.classList.toggle("multi-selected", multi);
+  el.classList.toggle("correct", correct);
+  el.classList.toggle("wrong", wrong);
+}
+
+function refreshSelectionClasses() {
+  document.querySelectorAll(".cell").forEach(el => {
+    const k = keyOf(Number(el.dataset.r), Number(el.dataset.c));
+    el.classList.toggle("selected", selectedCells.has(k));
+    el.classList.toggle("multi-selected", selectedCells.size > 1 && selectedCells.has(k));
+  });
+}
+
+function selectOnlyCell(r,c) {
+  selectedCells.clear();
+  selectedCells.add(keyOf(r,c));
+  refreshSelectionClasses();
+  cells[r][c].focus({preventScroll:true});
+}
+
+function addSelectCell(r,c) {
+  selectedCells.add(keyOf(r,c));
+  refreshSelectionClasses();
+}
+
+function toggleSelectCell(r,c) {
+  const k = keyOf(r,c);
+  if (selectedCells.has(k) && selectedCells.size > 1) selectedCells.delete(k);
+  else selectedCells.add(k);
+  refreshSelectionClasses();
+  cells[r][c].focus({preventScroll:true});
+}
+
+function selectedElements() {
+  return Array.from(selectedCells).map(k => {
+    const [r,c] = parseKey(k);
+    return cells[r][c];
+  });
+}
+
+function setMode(next) {
+  mode = next;
+  controls.classList.toggle("mode-palette", mode === "color");
+  document.getElementById("digitBtn").classList.toggle("active", mode === "digit");
+  document.getElementById("pencilBtn").classList.toggle("active", mode === "pencil");
+  document.getElementById("colorBtn").classList.toggle("active", mode === "color");
+  statusEl.textContent = mode === "digit"
+    ? "Digit mode: entries apply to all selected cells."
+    : mode === "pencil"
+      ? "Pencil mode: notes apply to all selected cells."
+      : "Color mode: click or drag cells to color them.";
+}
+
+function sortNotes(chars) {
+  return Array.from(new Set(chars.filter(Boolean))).sort((a, b) => {
+    const ad = /^[1-9]$/.test(a), bd = /^[1-9]$/.test(b);
+    if (ad && bd) return Number(a) - Number(b);
+    if (ad) return -1;
+    if (bd) return 1;
+    return a.localeCompare(b);
+  });
+}
+
+function inputPencilMark(mark) {
+  solvedAlready = false;
+  if (selectedCells.size === 0) selectOnlyCell(0,0);
+  selectedElements().forEach(el => {
+    el.classList.remove("correct","wrong");
+    if (el.dataset.value) return;
+    const set = new Set((el.dataset.notes || "").split("").filter(Boolean));
+    set.has(mark) ? set.delete(mark) : set.add(mark);
+    el.dataset.notes = sortNotes(Array.from(set)).slice(0, 9).join("");
+    render(el);
+  });
+  refreshSelectionClasses();
+}
+
+function inputNumber(n) {
+  solvedAlready = false;
+  if (selectedCells.size === 0) selectOnlyCell(0,0);
+  if (mode === "pencil") {
+    inputPencilMark(n);
+    return;
+  }
+  selectedElements().forEach(el => {
+    el.classList.remove("correct","wrong");
+    setMode("digit");
+    el.dataset.value = n;
+    el.dataset.notes = "";
+    render(el);
+  });
+  refreshSelectionClasses();
+}
+
+function erase() {
+  solvedAlready = false;
+  selectedElements().forEach(el => {
+    el.dataset.value = "";
+    el.dataset.notes = "";
+    el.classList.remove("correct","wrong");
+    render(el);
+  });
+  refreshSelectionClasses();
+}
+
+function applyColor(el) {
+  el.dataset.color = activeColor === "transparent" ? "" : activeColor;
+  render(el);
+  refreshSelectionClasses();
+}
+
+function check() {
+  attempts++;
+  attemptCountEl.textContent = attempts;
+  let filled = 0, wrong = 0;
+  for (let r=0; r<9; r++) {
+    for (let c=0; c<9; c++) {
+      const el = cells[r][c];
+      el.classList.remove("correct","wrong");
+      if (el.dataset.value) {
+        filled++;
+        if (Number(el.dataset.value) === solution[r][c]) el.classList.add("correct");
+        else { el.classList.add("wrong"); wrong++; }
+      }
+    }
+  }
+  if (filled === 81 && wrong === 0) {
+    if (!solvedAlready) {
+      solutionsFound++;
+      solutionCountEl.textContent = solutionsFound;
+      solvedAlready = true;
+    }
+    statusEl.textContent = `Solved. Time: ${timerEl.textContent}.`;
+  } else if (wrong === 0) {
+    statusEl.textContent = `No wrong entries so far. ${filled}/81 cells filled.`;
+  } else {
+    statusEl.textContent = `${wrong} wrong entr${wrong === 1 ? "y" : "ies"} marked in red.`;
+  }
+}
+
+function move(dr,dc) {
+  if (selectedCells.size === 0) return selectOnlyCell(0,0);
+  const [r,c] = parseKey(Array.from(selectedCells).at(-1));
+  selectOnlyCell((r + dr + 9) % 9, (c + dc + 9) % 9);
+}
+
+for (let r=0; r<9; r++) {
+  cells[r] = [];
+  for (let c=0; c<9; c++) {
+    const el = makeCell(r,c);
+    cells[r][c] = el;
+    grid.appendChild(el);
+    render(el);
+  }
+}
+
+for (let i=1; i<=9; i++) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.textContent = i;
+  b.addEventListener("click", () => inputNumber(String(i)));
+  numberPad.appendChild(b);
+}
+
+colors.forEach((color, idx) => {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.style.background = color === "transparent"
+    ? "linear-gradient(135deg, white 43%, black 46%, black 54%, white 57%)"
+    : color;
+  if (idx === 0) b.classList.add("active");
+  b.addEventListener("click", () => {
+    activeColor = color;
+    palette.querySelectorAll("button").forEach(x => x.classList.remove("active"));
+    b.classList.add("active");
+    selectedElements().forEach(applyColor);
+  });
+  palette.appendChild(b);
+});
+
+document.getElementById("digitBtn").addEventListener("click", () => setMode("digit"));
+document.getElementById("pencilBtn").addEventListener("click", () => setMode("pencil"));
+document.getElementById("colorBtn").addEventListener("click", () => setMode("color"));
+document.getElementById("eraseBtn").addEventListener("click", erase);
+document.getElementById("checkBtn").addEventListener("click", check);
+
+document.addEventListener("mouseup", () => {
+  mouseDown = false;
+  setTimeout(() => { draggedDuringMouseDown = false; }, 0);
+});
+
+document.querySelector(".entry-grid").addEventListener("touchstart", e => {
+  const t = e.touches[0];
+  const target = document.elementFromPoint(t.clientX, t.clientY);
+  if (target && target.classList.contains("cell")) {
+    mouseDown = true;
+    selectOnlyCell(Number(target.dataset.r), Number(target.dataset.c));
+    if (mode === "color") applyColor(target);
+    e.preventDefault();
+  }
+}, {passive:false});
+
+document.querySelector(".entry-grid").addEventListener("touchmove", e => {
+  const t = e.touches[0];
+  const target = document.elementFromPoint(t.clientX, t.clientY);
+  if (target && target.classList.contains("cell")) {
+    draggedDuringMouseDown = true;
+    addSelectCell(Number(target.dataset.r), Number(target.dataset.c));
+    if (mode === "color") applyColor(target);
+    e.preventDefault();
+  }
+}, {passive:false});
+
+document.addEventListener("touchend", () => {
+  mouseDown = false;
+  setTimeout(() => { draggedDuringMouseDown = false; }, 0);
+});
+
+document.addEventListener("keydown", e => {
+  if (/^[1-9]$/.test(e.key)) { inputNumber(e.key); e.preventDefault(); }
+  else if (mode === "pencil" && /^[a-z]$/i.test(e.key)) { inputPencilMark(e.key.toLowerCase()); e.preventDefault(); }
+  else if (e.key === "Backspace" || e.key === "Delete" || e.key === "0") { erase(); e.preventDefault(); }
+  else if (e.key === "#") { setMode("digit"); e.preventDefault(); }
+  else if (e.key.toLowerCase() === "p") { setMode("pencil"); e.preventDefault(); }
+  else if (e.key.toLowerCase() === "c") { setMode("color"); e.preventDefault(); }
+  else if (e.key === "ArrowUp") { move(-1,0); e.preventDefault(); }
+  else if (e.key === "ArrowDown") { move(1,0); e.preventDefault(); }
+  else if (e.key === "ArrowLeft") { move(0,-1); e.preventDefault(); }
+  else if (e.key === "ArrowRight") { move(0,1); e.preventDefault(); }
+});
+
+selectOnlyCell(0,0);
+</script>
+</body>
+</html>
